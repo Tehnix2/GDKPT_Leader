@@ -2,20 +2,13 @@
 ## Version: 0.22
 ## Author: Tehnix
 ## Interface: 30300
-## SavedVariables: GDKPdb
-Libs\libs.xml
-Libs\LibStub\LibStub.lua
-Libs\AceAddon-3.0\AceAddon-3.0.xml
-Libs\AceBucket-3.0\AceBucket-3.0.xml
-Libs\AceComm-3.0\AceComm-3.0.xml
-Libs\AceConfig-3.0\AceConfig-3.0.xml
-Libs\AceConsole-3.0\AceConsole-3.0.xml
-Libs\AceDB-3.0\AceDB-3.0.xml
-Libs\AceDBOptions-3.0\AceDBOptions-3.0.xml
-Libs\AceEvent-3.0\AceEvent-3.0.xml
-Libs\AceGUI-3.0\AceGUI-3.0.xml
-Libs\AceTab-3.0\AceTab-3.0.xml
-Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
-Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
-Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
-GDKPT_RaidLeader.lua
+## SavedVariables: 
+GDKPT.RaidLeader.Core.lua
+GDKPT.RaidLeader.Utils.lua
+GDKPT.RaidLeader.UI.lua
+GDKPT.RaidLeader.MessageHandler.lua
+GDKPT.RaidLeader.SyncSettings.lua
+GDKPT.RaidLeader.VersionCheck.lua
+GDKPT.RaidLeader.AuctionStart.lua
+GDKPT.RaidLeader.AuctionBid.lua
+GDKPT.RaidLeader.AuctionEnd.lua
