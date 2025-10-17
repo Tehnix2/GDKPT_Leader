@@ -6,8 +6,8 @@ GDKPT.RaidLeader.Core.version = 0.25
 
 GDKPT.RaidLeader.Core.addonPrefix = "GDKP"  
 
--- Default values
-GDKPT.RaidLeader.Core.AuctionSettings = {     
+
+GDKPT.RaidLeader.Core.defaults = {
     duration = 20,          -- Auction Duration
     extraTime = 5,          -- additional time per bid
     startBid = 50,          -- staring gold amound
@@ -15,11 +15,38 @@ GDKPT.RaidLeader.Core.AuctionSettings = {
     splitCount = 25         -- amount of players to split the gold by
 }
 
+-- Initialize the settings table to nil. It will be set in InitSettings.
+GDKPT.RaidLeader.Core.AuctionSettings = nil
+
+
+-- Define the function that merges defaults with loaded data.
+function GDKPT.RaidLeader.Core.InitSettings()
+    -- 1. Ensure the global saved variable table exists (loaded from disk or empty)
+    local savedSettings = GDKPT_RaidLeader_Core_AuctionSettings or {}
+
+    -- 2. Merge defaults only for missing keys.
+    for k, v in pairs(GDKPT.RaidLeader.Core.defaults) do
+        if savedSettings[k] == nil then
+            savedSettings[k] = v
+        end
+    end
+
+    -- 3. Point the global variable to the merged table (ensures saving works)
+    GDKPT_RaidLeader_Core_AuctionSettings = savedSettings
+
+    -- 4. Set the internal reference (used by UI)
+    GDKPT.RaidLeader.Core.AuctionSettings = GDKPT_RaidLeader_Core_AuctionSettings
+end
+
+
+
 GDKPT.RaidLeader.Core.ActiveAuctions = {}  -- Table that tracks all active auctions
 GDKPT.RaidLeader.Core.nextAuctionId = 1    -- Auction Index inside the table
 
 
 GDKPT.RaidLeader.Core.GDKP_Pot = 0         
+
+
 
 
 
@@ -92,3 +119,7 @@ end
 -------------------------------------------------------------------
 -- 
 -------------------------------------------------------------------
+
+if GDKPT_RaidLeader_UpdateSettingsUI then
+    GDKPT_RaidLeader_UpdateSettingsUI()
+end

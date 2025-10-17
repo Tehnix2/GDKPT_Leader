@@ -72,7 +72,7 @@ local DurationBox = CreateFrame("EditBox", nil, GDKPLeaderFrame, "BackdropTempla
 DurationBox:SetSize(50, 25)
 DurationBox:SetPoint("TOPRIGHT", GDKPLeaderFrame, "TOPRIGHT", -100, -45)
 DurationBox:SetAutoFocus(false)
-DurationBox:SetText(GDKPT.RaidLeader.Core.AuctionSettings.duration)
+--DurationBox:SetText(GDKPT.RaidLeader.Core.AuctionSettings.duration)
 
 DurationBox:SetBackdrop(
     {
@@ -95,20 +95,50 @@ SaveDurationButton:SetText("Save")
 SaveDurationButton:SetNormalFontObject("GameFontNormalLarge")
 SaveDurationButton:SetHighlightFontObject("GameFontHighlightLarge")
 
+
 SaveDurationButton:SetScript(
     "OnClick",
     function()
-        GDKPT.RaidLeader.Core.AuctionSettings.duration = tonumber(DurationBox:GetText()) or GDKPT.RaidLeader.Core.AuctionSettings.duration
-        print("Auctions now last for " .. GDKPT.RaidLeader.AuctionSettings.Core.duration .. " seconds.")
+        -- Get the input text and attempt to convert it to a number
+        local inputNumber = tonumber(DurationBox:GetText())
+        
+        -- Check if a valid number was entered AND if it is greater than zero
+        if inputNumber and inputNumber > 0 then
+            GDKPT.RaidLeader.Core.AuctionSettings.duration = inputNumber
+            print("|cff00ff00[GDKP Leader]|r SAVED: Duration is now: " .. inputNumber .. " seconds.")
+        else
+            -- If input is invalid, inform the user and reset the EditBox to the current SAVED value
+            print("|cffff0000[GDKP Leader]|r ERROR: Invalid or zero value entered. Setting restored.")
+            DurationBox:SetText(GDKPT.RaidLeader.Core.AuctionSettings.duration)
+        end
+        
         if IsInRaid() then
             SendChatMessage(
-                string.format("[GDKPT] Auction duration has been changed to %d seconds.", GDKPT.RaidLeader.AuctionSettings.Core.duration),
+                string.format("[GDKPT] Auction duration has been changed to %d seconds.", GDKPT.RaidLeader.Core.AuctionSettings.duration),
                 "RAID"
             )
         end
         DurationBox:ClearFocus()
     end
 )
+
+--[[
+SaveDurationButton:SetScript(
+    "OnClick",
+    function()
+        GDKPT.RaidLeader.Core.AuctionSettings.duration = tonumber(DurationBox:GetText()) or GDKPT.RaidLeader.Core.AuctionSettings.duration
+        print("Auctions now last for " .. GDKPT.RaidLeader.Core.AuctionSettings.duration .. " seconds.")
+        if IsInRaid() then
+            SendChatMessage(
+                string.format("[GDKPT] Auction duration has been changed to %d seconds.", GDKPT.RaidLeader.Core.AuctionSettings.duration),
+                "RAID"
+            )
+        end
+        DurationBox:ClearFocus()
+    end
+)
+
+]]
 
 DurationBox:SetScript(
     "OnEnterPressed",
@@ -130,7 +160,7 @@ local ExtraTimeBox = CreateFrame("EditBox", nil, GDKPLeaderFrame, "BackdropTempl
 ExtraTimeBox:SetSize(50, 25)
 ExtraTimeBox:SetPoint("TOPRIGHT", GDKPLeaderFrame, "TOPRIGHT", -100, -95)
 ExtraTimeBox:SetAutoFocus(false)
-ExtraTimeBox:SetText(GDKPT.RaidLeader.Core.AuctionSettings.extraTime)
+--ExtraTimeBox:SetText(GDKPT.RaidLeader.Core.AuctionSettings.extraTime)
 
 ExtraTimeBox:SetBackdrop(
     {
@@ -189,7 +219,7 @@ local StartBidBox = CreateFrame("EditBox", nil, GDKPLeaderFrame, "BackdropTempla
 StartBidBox:SetSize(50, 25)
 StartBidBox:SetPoint("TOPRIGHT", GDKPLeaderFrame, "TOPRIGHT", -100, -145)
 StartBidBox:SetAutoFocus(false)
-StartBidBox:SetText(GDKPT.RaidLeader.Core.AuctionSettings.startBid)
+--StartBidBox:SetText(GDKPT.RaidLeader.Core.AuctionSettings.startBid)
 
 StartBidBox:SetBackdrop(
     {
@@ -243,7 +273,7 @@ local MinIncBox = CreateFrame("EditBox", nil, GDKPLeaderFrame, "BackdropTemplate
 MinIncBox:SetSize(50, 25)
 MinIncBox:SetPoint("TOPRIGHT", GDKPLeaderFrame, "TOPRIGHT", -100, -195)
 MinIncBox:SetAutoFocus(false)
-MinIncBox:SetText(GDKPT.RaidLeader.Core.AuctionSettings.minIncrement)
+--MinIncBox:SetText(GDKPT.RaidLeader.Core.AuctionSettings.minIncrement)
 
 MinIncBox:SetBackdrop(
     {
@@ -301,7 +331,7 @@ local SplitByCountBox = CreateFrame("EditBox", nil, GDKPLeaderFrame, "BackdropTe
 SplitByCountBox:SetSize(50, 25)
 SplitByCountBox:SetPoint("TOPRIGHT", GDKPLeaderFrame, "TOPRIGHT", -100, -245)
 SplitByCountBox:SetAutoFocus(false)
-SplitByCountBox:SetText(GDKPT.RaidLeader.Core.AuctionSettings.splitCount)
+--SplitByCountBox:SetText(GDKPT.RaidLeader.Core.AuctionSettings.splitCount)
 
 SplitByCountBox:SetBackdrop(
     {
@@ -348,6 +378,17 @@ SplitByCountBox:SetScript(
 
 
 
+
+function GDKPT.RaidLeader.UI.UpdateSettingsUI()
+    local settings = GDKPT.RaidLeader.Core.AuctionSettings
+   
+    -- Set EditBox Text
+    DurationBox:SetText(tostring(settings.duration))
+    ExtraTimeBox:SetText(tostring(settings.extraTime))
+    StartBidBox:SetText(tostring(settings.startBid))
+    MinIncBox:SetText(tostring(settings.minIncrement))
+    SplitByCountBox:SetText(tostring(settings.splitCount))
+end
 
 
 

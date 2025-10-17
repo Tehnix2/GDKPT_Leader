@@ -1,8 +1,10 @@
-## Title: GDKPT RaidLeader v0.22
+## Title: GDKPT RaidLeader v0.25
+## Name: GDKPT_RaidLeader
 ## Version: 0.22
 ## Author: Tehnix
 ## Interface: 30300
-## SavedVariables: 
+## SavedVariables: GDKPT_RaidLeader_Core_AuctionSettings
+GDKPT.RaidLeader.Loader.lua
 GDKPT.RaidLeader.Core.lua
 GDKPT.RaidLeader.Utils.lua
 GDKPT.RaidLeader.UI.lua
