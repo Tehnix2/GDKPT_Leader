@@ -8,40 +8,54 @@ GDKPT.RaidLeader.AuctionBid = {}
 -------------------------------------------------------------------
 
 local function HandleBid(sender, auctionId, bidAmount)
-    -- auctionId and bidAmount get sent over as string, so need to conver to number
     auctionId = tonumber(auctionId)
     bidAmount = tonumber(bidAmount)
-
     local auction = GDKPT.RaidLeader.Core.ActiveAuctions[auctionId]
-
+    
     if not auction then
         return
-    end -- Auction doesn't exist or is over
+    end 
+    
 
-    -- Validate the incoming bid once more for safety reasons
+    --  Check if auction has already ended
+    -- This prevents late bids from being processed after the auction timer expires
+    if auction.hasEnded then
+        print(string.format("|cffff8800[GDKPT Leader]|r Rejected late bid from %s on auction %d (already ended)", sender, auctionId))
+        return
+    end
 
     if bidAmount and bidAmount < auction.currentBid + GDKPT.RaidLeader.Core.AuctionSettings.minIncrement then
         print("Incoming bid is incorrect")
         return
     end
 
-    -- If the incoming bid is validated, then update the currentBid and topBidder for this auction
+    -- Additional safety check: reject bids if auction time has expired
+    if time() >= auction.endTime then
+        print(string.format("|cffff8800[GDKPT Leader]|r Rejected late bid from %s on auction %d (time expired)", sender, auctionId))
+        return
+    end
+    
     if bidAmount and sender then
         auction.currentBid = bidAmount
         auction.topBidder = sender
-
-        -- Adding a bid increases the duration of the auction by extraTime
+        
+        -- Add extra time
         auction.endTime = auction.endTime + GDKPT.RaidLeader.Core.AuctionSettings.extraTime
-
-        -- Send the update to all members
-        local updateMsg =
-            string.format(
-            "AUCTION_UPDATE:%d:%d:%s:%d",
+        
+        -- Calculate remaining time from current server time
+        local remainingTime = auction.endTime - time()
+        
+        -- Send the update with remaining time instead of absolute endTime
+        local updateMsg = string.format(
+            "AUCTION_UPDATE:%d:%d:%s:%d:%d:%s",
             auctionId,
             auction.currentBid,
             auction.topBidder,
-            auction.endTime
+            remainingTime, -- Send remaining time, not absolute endTime
+            auction.itemID,
+            auction.itemLink
         )
+        
         GDKPT.RaidLeader.MessageHandler.SafeSendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, updateMsg, "RAID")
         SendChatMessage(
             string.format(
@@ -63,7 +77,6 @@ end
 -------------------------------------------------------------------
 
 
--- Event handler for addon messages
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("CHAT_MSG_ADDON")
 
@@ -85,29 +98,3 @@ eventFrame:SetScript(
 
 
 
-
-
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------
-
-
-
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------
-
-
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------
-
-
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------
-
-
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------

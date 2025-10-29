@@ -10,92 +10,66 @@ GDKPT.RaidLeader.AuctionStart = {}
 
 
 
-
 function GDKPT.RaidLeader.AuctionStart.StartAuction(itemLink)
     if not IsRaidLeader() and not IsRaidOfficer() then
         print("|cffff0000Only the Raid Leader or an Officer can start auctions.|r")
         return
     end
-
     local itemID = tonumber(itemLink:match("item:(%d+)"))
     if not itemID then
         print("|cffff0000Invalid item link. Cannot start an auction for this item.|r")
         return
     end
 
+    if GDKPT.RaidLeader.Core.PotFinalized then
+        print("|cffff3333[GDKPT Leader]|r Cannot start auction - pot has been finalized!")
+        return
+    end
 
-    -- every /gdkpleader auctioned item gets stored in a new row of the ActiveAuctions table with row index auctionID
+
+    local stackCount =  GDKPT.RaidLeader.Utils.GetInventoryStackCount(itemLink)
+
+
 
     local auctionId = GDKPT.RaidLeader.Core.nextAuctionId
     GDKPT.RaidLeader.Core.nextAuctionId = GDKPT.RaidLeader.Core.nextAuctionId + 1
-
      
-
-    -- Store item information from /gdkp auction [itemlink] mouseovered item in a table
+    local duration = GDKPT.RaidLeader.Core.AuctionSettings.duration
+    local serverTime = time() -- Unix timestamp, synchronized across clients
+    
+    -- Store item information
     GDKPT.RaidLeader.Core.ActiveAuctions[auctionId] = {
         id = auctionId,
         itemID = itemID,
         itemLink = itemLink,
-        startTime = GetTime(),
-        endTime = GetTime() + GDKPT.RaidLeader.Core.AuctionSettings.duration,
+        startTime = serverTime,
+        endTime = serverTime + duration, -- Use server time instead of GetTime()
         startBid = GDKPT.RaidLeader.Core.AuctionSettings.startBid,
         currentBid = 0,
         topBidder = "",
+        stackCount = stackCount,
         history = {}
     }
-
-    -- Announce to raid and send data to member addons
-    local msg =
-        string.format(
-        "AUCTION_START:%d:%d:%d:%d:%d:%s",
+    
+    -- Send the message with duration instead of absolute endTime
+    local msg = string.format(
+        "AUCTION_START:%d:%d:%d:%d:%d:%d:%s",
         auctionId,
         itemID,
         GDKPT.RaidLeader.Core.AuctionSettings.startBid,
         GDKPT.RaidLeader.Core.AuctionSettings.minIncrement,
-        GDKPT.RaidLeader.Core.ActiveAuctions[auctionId].endTime,
+        duration, -- Send duration, not endTime
+        stackCount,
         itemLink
     )
-
    
     SendChatMessage(
         string.format("[GDKPT] Bidding starts on %s! Starting at %d gold.", itemLink, GDKPT.RaidLeader.Core.AuctionSettings.startBid),
         "RAID"
     )
-
-    C_Timer.After(
-        1,
-        function()
-            GDKPT.RaidLeader.MessageHandler.SafeSendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, "RAID")
-        end
-    )
+    
+    C_Timer.After(1, function()
+        GDKPT.RaidLeader.MessageHandler.SafeSendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, "RAID")
+    end)
 end
 
-
-
-
-
-
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------
-
-
-
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------
-
-
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------
-
-
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------
-
-
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------

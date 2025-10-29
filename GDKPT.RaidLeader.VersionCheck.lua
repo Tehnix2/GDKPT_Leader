@@ -16,7 +16,7 @@ local function VersionCheck()
 end
 
 local VersionCheckButton = CreateFrame("Button", nil, GDKPLeaderFrame, "GameMenuButtonTemplate")
-VersionCheckButton:SetPoint("CENTER", GDKPLeaderFrame, "CENTER", 0, -140)
+VersionCheckButton:SetPoint("CENTER", GDKPLeaderFrame, "CENTER", 100, -50)
 VersionCheckButton:SetSize(150, 20)
 VersionCheckButton:SetText("Version Check")
 VersionCheckButton:SetNormalFontObject("GameFontNormalLarge")
@@ -29,32 +29,3 @@ VersionCheckButton:SetScript(
     end
 )
 
-
-
-
-
-
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------
-
-
-
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------
-
-
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------
-
-
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------
-
-
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------

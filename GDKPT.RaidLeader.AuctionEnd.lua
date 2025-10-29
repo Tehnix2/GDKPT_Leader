@@ -1,35 +1,27 @@
 GDKPT.RaidLeader.AuctionEnd = {}
 
-
-
+GDKPT.RaidLeader.Core.PlayerWonItems = GDKPT.RaidLeader.Core.PlayerWonItems or {}
 
 
 -------------------------------------------------------------------
 -- Auction End logic
 -------------------------------------------------------------------
 
-
-
-
 local timerFrame = CreateFrame("Frame")
 
 
 
-local timerFrame = CreateFrame("Frame")
 
--- Timer to process the message queue and check for auction ends
 timerFrame:SetScript(
     "OnUpdate",
     function(self, elapsed)
-        -- **1. MESSAGE QUEUE LOGIC (Runs every 0.2 seconds)**
-        -- Process one message from the queue with a delay to prevent flooding.
         if GetTime() - (self.lastMessageSent or 0) > 0.2 and #GDKPT.RaidLeader.MessageHandler.MessageQueue > 0 then
             local message = table.remove(GDKPT.RaidLeader.MessageHandler.MessageQueue, 1)
             SendAddonMessage(message.prefix, message.msg, message.channel)
             self.lastMessageSent = GetTime()
         end
 
-        -- **2. AUCTION ENDING LOGIC (Throttle to 1 second)**
+        
         self.timeSinceLastCheck = (self.timeSinceLastCheck or 0) + elapsed
 
         if self.timeSinceLastCheck >= 1 then
@@ -39,7 +31,8 @@ timerFrame:SetScript(
             local finishedAuctions = {}
 
             for id, auction in pairs(GDKPT.RaidLeader.Core.ActiveAuctions) do
-                if now >= auction.endTime then
+                -- Only process auctions that haven't been marked as ended yet
+                if not auction.hasEnded and time() >= auction.endTime then
                     table.insert(finishedAuctions, id)
                 end
             end
@@ -47,7 +40,9 @@ timerFrame:SetScript(
             for _, id in ipairs(finishedAuctions) do
                 local auction = GDKPT.RaidLeader.Core.ActiveAuctions[id]
 
-                -- Your Chat Message announcing the winner (uses SendChatMessage, which is fine)
+                -- Mark this auction as ended so we don't process it again
+                auction.hasEnded = true
+                
                 if auction.topBidder ~= "" then
                     SendChatMessage(
                         string.format(
@@ -73,8 +68,20 @@ timerFrame:SetScript(
                     GDKPT.RaidLeader.Core.GDKP_Pot = GDKPT.RaidLeader.Core.GDKP_Pot + auction.currentBid
                 end
 
-                -- Send message to member addon to remove the row of the finished auction
-
+                if auction.topBidder ~= "Bulk" and auction.currentBid > 0 then
+                    if not GDKPT.RaidLeader.Core.PlayerWonItems[auction.topBidder] then
+                        GDKPT.RaidLeader.Core.PlayerWonItems[auction.topBidder] = {}
+                    end
+                    table.insert(GDKPT.RaidLeader.Core.PlayerWonItems[auction.topBidder], {
+                        itemID = auction.itemID,
+                        itemLink = auction.itemLink,
+                        traded = false,
+                        auctionId = id,
+                        amountPaid = 0
+                    }) 
+                end
+                
+               
                 local endMsg =
                     string.format(
                     "AUCTION_END:%d:%d:%d:%s:%d",
@@ -87,8 +94,14 @@ timerFrame:SetScript(
 
                 GDKPT.RaidLeader.MessageHandler.SafeSendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, endMsg, "RAID")
 
-                -- Remove from active auctions
-                GDKPT.RaidLeader.Core.ActiveAuctions[id] = nil
+                if not GDKPT.RaidLeader.Core.PlayerBalances[auction.topBidder] then
+                    GDKPT.RaidLeader.Core.PlayerBalances[auction.topBidder] = 0
+                end
+
+                GDKPT.RaidLeader.Core.PlayerBalances[auction.topBidder] = GDKPT.RaidLeader.Core.PlayerBalances[auction.topBidder] - auction.currentBid
+
+                GDKPT.RaidLeader.UI.UpdateRosterDisplay()
+                
             end
         end
     end
@@ -98,27 +111,26 @@ timerFrame:SetScript(
 
 
 
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------
 
+function GDKPT.RaidLeader.AuctionEnd.UpdateDataAfterManualAdjustment(playerName, adjustmentAmount, auctionIndex)
+    
+    local oldPlayerBalance = GDKPT.RaidLeader.Core.PlayerBalances[playerName] or 0
+    local newPlayerBalance = oldPlayerBalance + adjustmentAmount
+    
+    GDKPT.RaidLeader.Core.PlayerBalances[playerName] = newPlayerBalance
 
+    local newPot = GDKPT.RaidLeader.Core.GDKP_Pot - adjustmentAmount
+    GDKPT.RaidLeader.Core.GDKP_Pot = newPot
 
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------
+    local manualAdjustmentMessage = string.format("MANUAL_ADJUSTMENT:%s:%d:%d:%d:%d", 
+        playerName, 
+        adjustmentAmount, 
+        newPot,                 
+        newPlayerBalance,       
+        auctionIndex or -1
+    )
 
+    GDKPT.RaidLeader.MessageHandler.SafeSendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, manualAdjustmentMessage, "RAID")
+    GDKPT.RaidLeader.UI.UpdateRosterDisplay()
+end
 
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------
-
-
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------
-
-
--------------------------------------------------------------------
--- 
--------------------------------------------------------------------
