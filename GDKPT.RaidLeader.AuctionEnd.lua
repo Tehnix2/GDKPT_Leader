@@ -75,6 +75,7 @@ timerFrame:SetScript(
                     table.insert(GDKPT.RaidLeader.Core.PlayerWonItems[auction.topBidder], {
                         itemID = auction.itemID,
                         itemLink = auction.itemLink,
+                        stackCount = auction.stackCount,
                         traded = false,
                         auctionId = id,
                         amountPaid = 0
