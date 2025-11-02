@@ -42,6 +42,7 @@ timerFrame:SetScript(
 
                 -- Mark this auction as ended so we don't process it again
                 auction.hasEnded = true
+
                 
                 if auction.topBidder ~= "" then
                     SendChatMessage(
@@ -78,8 +79,18 @@ timerFrame:SetScript(
                         stackCount = auction.stackCount,
                         traded = false,
                         auctionId = id,
-                        amountPaid = 0
+                        amountPaid = 0,
+                        price = auction.currentBid,           -- NEW: Store winning bid
+                        winningBid = auction.currentBid,       -- NEW: Alternative field name
+                        bid = auction.currentBid               -- NEW: Another alternative
                     }) 
+                end
+
+                -- Update the tracked item with winner information
+                if auction.itemHash and GDKPT.RaidLeader.Core.AuctionedItems[auction.itemHash] then
+                    GDKPT.RaidLeader.Core.AuctionedItems[auction.itemHash].winner = auction.topBidder
+                    GDKPT.RaidLeader.Core.AuctionedItems[auction.itemHash].winningBid = auction.currentBid
+                    GDKPT.RaidLeader.Core.AuctionedItems[auction.itemHash].hasEnded = true
                 end
                 
                
@@ -102,11 +113,86 @@ timerFrame:SetScript(
                 GDKPT.RaidLeader.Core.PlayerBalances[auction.topBidder] = GDKPT.RaidLeader.Core.PlayerBalances[auction.topBidder] - auction.currentBid
 
                 GDKPT.RaidLeader.UI.UpdateRosterDisplay()
+
+                if GDKPT.RaidLeader.Trading.UpdateReadyForPotSplitButton then
+                    GDKPT.RaidLeader.Trading.UpdateReadyForPotSplitButton()
+                end
                 
             end
         end
     end
 )
+
+
+
+
+
+function GDKPT.RaidLeader.AuctionEnd.UpdateDataAfterManualAdjustment(playerName, adjustmentAmount, auctionIndex)
+    
+    local oldPlayerBalance = GDKPT.RaidLeader.Core.PlayerBalances[playerName] or 0
+    local newPlayerBalance = oldPlayerBalance + adjustmentAmount
+    
+    GDKPT.RaidLeader.Core.PlayerBalances[playerName] = newPlayerBalance
+
+    -- Adjust pot: if we're reducing player debt (negative adjustment), pot goes down
+    -- if we're increasing player debt (positive adjustment), pot goes up
+    local newPot = GDKPT.RaidLeader.Core.GDKP_Pot - adjustmentAmount
+    GDKPT.RaidLeader.Core.GDKP_Pot = newPot
+
+    -- If this adjustment is for a specific auction, mark the item as manually handled
+    if auctionIndex > 0 then
+        local wonItems = GDKPT.RaidLeader.Core.PlayerWonItems[playerName]
+        if wonItems then
+            for i, item in ipairs(wonItems) do
+                if item.auctionId == auctionIndex then
+                    item.manuallyAdjusted = true
+                    item.adjustedAmount = adjustmentAmount
+                    -- Mark as fully traded so it won't appear in future trades
+                    item.fullyTraded = true
+                    item.remainingQuantity = 0
+                    print(string.format("|cff00ff00[GDKPT Leader]|r Marked auction #%d as manually adjusted for %s", 
+                        auctionIndex, playerName))
+                    break
+                end
+            end
+            
+            -- Remove fully traded items
+            for i = #wonItems, 1, -1 do
+                if wonItems[i].fullyTraded then
+                    table.remove(wonItems, i)
+                end
+            end
+            
+            -- Clean up empty player entries
+            if #wonItems == 0 then
+                GDKPT.RaidLeader.Core.PlayerWonItems[playerName] = nil
+            end
+        end
+    end
+
+    local manualAdjustmentMessage = string.format("MANUAL_ADJUSTMENT:%s:%d:%d:%d:%d", 
+        playerName, 
+        adjustmentAmount, 
+        newPot,                 
+        newPlayerBalance,       
+        auctionIndex or -1
+    )
+
+    GDKPT.RaidLeader.MessageHandler.SafeSendAddonMessage(
+        GDKPT.RaidLeader.Core.addonPrefix, manualAdjustmentMessage, "RAID")
+    GDKPT.RaidLeader.UI.UpdateRosterDisplay()
+    
+    -- Update ready for pot split button
+    if GDKPT.RaidLeader.Trading.UpdateReadyForPotSplitButton then
+        GDKPT.RaidLeader.Trading.UpdateReadyForPotSplitButton()
+    end
+end
+
+
+
+
+
+--[[
 
 
 
@@ -135,3 +221,5 @@ function GDKPT.RaidLeader.AuctionEnd.UpdateDataAfterManualAdjustment(playerName,
     GDKPT.RaidLeader.UI.UpdateRosterDisplay()
 end
 
+
+]]

@@ -2,7 +2,7 @@ GDKPT.RaidLeader = GDKPT.RaidLeader or {}
 
 GDKPT.RaidLeader.Core = {}
 
-GDKPT.RaidLeader.Core.version = 0.29
+GDKPT.RaidLeader.Core.version = 0.30
 
 GDKPT.RaidLeader.Core.addonPrefix = "GDKP"  
 
@@ -21,6 +21,14 @@ GDKPT.RaidLeader.Core.defaults = {
 
 GDKPT.RaidLeader.Core.AuctionSettings = nil
 
+
+-- Table that stores items which have already been auctioned off
+GDKPT.RaidLeader.Core.AuctionedItemInstances = GDKPT.RaidLeader.Core.AuctionedItemInstances or {}
+
+
+-- Track items that cause trade window to close unexpectedly
+GDKPT_RaidLeader_BuggedItems = GDKPT_RaidLeader_BuggedItems or {}
+GDKPT.RaidLeader.Core.BuggedItems = GDKPT_RaidLeader_BuggedItems
 
 
 
@@ -135,6 +143,10 @@ function GDKPT.RaidLeader.Core.ResetAllAuctions()
     end
 
     GDKPT.RaidLeader.PotSplit.StartPotSplitPhase = false
+
+    if GDKPT.RaidLeader.InventoryOverlay and GDKPT.RaidLeader.InventoryOverlay.UpdateAllBags then
+        GDKPT.RaidLeader.InventoryOverlay.UpdateAllBags()
+    end
     
     print("|cff00ff00[GDKPT Leader]|r Full reset complete.")
 end
@@ -144,6 +156,11 @@ end
 
 
 GDKPT.RaidLeader.Core.GDKP_Pot = 0        
+
+
+GDKPT.RaidLeader.Core.AuctionedItems = GDKPT.RaidLeader.Core.AuctionedItems or {}
+
+
 
 
 

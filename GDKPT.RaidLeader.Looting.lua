@@ -1,6 +1,36 @@
 GDKPT.RaidLeader.Looting = {}
 
 
+---------------------------------------------------------------------------------------
+-- Buttons for auto masterlooting and auto announcement of dropped loot without looting
+---------------------------------------------------------------------------------------
+
+
+LeaderFrame.AnnounceAndLootButton = CreateFrame("Button", "AutoMasterlootButton", LeaderFrame, "UIPanelButtonTemplate")
+LeaderFrame.AnnounceAndLootButton:SetSize(160, 22)
+LeaderFrame.AnnounceAndLootButton:SetPoint("TOP", LeaderFrame  , "BOTTOM", 0, -5)
+LeaderFrame.AnnounceAndLootButton:SetText("Announce & Auto-Loot")
+
+LeaderFrame.AnnounceAndLootButton:SetScript("OnClick", function()
+    GDKPT.RaidLeader.Looting.ProcessLoot(true) -- 'true' = auto-loot
+end)
+
+LeaderFrame.AnnounceOnlyButton = CreateFrame("Button", nil,LeaderFrame, "UIPanelButtonTemplate")
+LeaderFrame.AnnounceOnlyButton:SetSize(160, 22)
+LeaderFrame.AnnounceOnlyButton:SetPoint("TOP", LeaderFrame, "BOTTOM", 0, -40)
+LeaderFrame.AnnounceOnlyButton:SetText("Announce Only")
+
+LeaderFrame.AnnounceOnlyButton:SetScript("OnClick", function()
+    GDKPT.RaidLeader.Looting.ProcessLoot(false) -- 'false' = no auto-loot
+end)
+
+
+
+---------------------------------------------------------------------------------------
+-- Function for AutoMasterlooting
+---------------------------------------------------------------------------------------
+
+
 function GDKPT.RaidLeader.Looting.ProcessLoot(shouldAutoLoot)
 
     local numItems = GetNumLootItems()

@@ -1,6 +1,6 @@
-## Title: GDKPT RaidLeader v0.29
+## Title: GDKPT RaidLeader v0.30
 ## Name: GDKPT_RaidLeader
-## Version: 0.29
+## Version: 0.30
 ## Author: Tehnix
 ## Interface: 30300
 ## SavedVariables: GDKPT_RaidLeader_Core_AuctionSettings, GDKPT_RaidLeader_Core_ActiveAuctions, GDKPT_RaidLeader_Core_PotHistory, GDKPT_RaidLeader_Core_PlayerBalances, GDKPT_RaidLeader_Core_PlayerWonItems 
@@ -9,7 +9,7 @@ GDKPT.RaidLeader.Core.lua
 GDKPT.RaidLeader.Utils.lua
 GDKPT.RaidLeader.MessageHandler.lua
 GDKPT.RaidLeader.UI.lua
-GDKPT.RaidLeader.SyncSettings.lua
+GDKPT.RaidLeader.Sync.lua
 GDKPT.RaidLeader.VersionCheck.lua
 GDKPT.RaidLeader.AuctionStart.lua
 GDKPT.RaidLeader.AuctionBid.lua
@@ -17,4 +17,6 @@ GDKPT.RaidLeader.AuctionEnd.lua
 GDKPT.RaidLeader.Looting.lua
 GDKPT.RaidLeader.PotSplit.lua
 GDKPT.RaidLeader.Trading.lua
-GDKPT.RaidLEader.Export.lua
+GDKPT.RaidLeader.Export.lua
+GDKPT.RaidLeader.TooltipExtension.lua
+GDKPT.RaidLeader.TradeHelper.lua

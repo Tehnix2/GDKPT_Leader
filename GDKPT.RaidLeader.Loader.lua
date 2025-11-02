@@ -39,6 +39,10 @@ local function GDKPLeaderFrame_OnEvent(self, event, arg1)
 
                 GDKPT.RaidLeader.Core.InitPlayerWonItems()
 
+                  if GDKPT.RaidLeader.AuctionStart and GDKPT.RaidLeader.AuctionStart.MouseoverAuction then
+                    GDKPT.RaidLeader.AuctionStart.MouseoverAuction()
+                end
+
                 self:UnregisterEvent("ADDON_LOADED")
 
             end

@@ -58,9 +58,6 @@ GDKPLeaderFrame:RegisterEvent("ADDON_LOADED")
 
 
 
-
-
-
 -------------------------------------------------------------------
 -- Input fields to adjust global settings
 -------------------------------------------------------------------
@@ -115,6 +112,7 @@ SaveDurationButton:SetScript(
                 string.format("[GDKPT] Auction duration has been changed to %d seconds.", GDKPT.RaidLeader.Core.AuctionSettings.duration),
                 "RAID"
             )
+            GDKPT.RaidLeader.Sync.SyncSettings()
         end
         DurationBox:ClearFocus()
     end
@@ -175,6 +173,7 @@ SaveExtraTimeButton:SetScript(
                 ),
                 "RAID"
             )
+            GDKPT.RaidLeader.Sync.SyncSettings()
         end
         ExtraTimeBox:ClearFocus()
     end
@@ -227,6 +226,7 @@ SaveStartBidButton:SetScript(
         print("Starting Bid for all auctions is now " .. GDKPT.RaidLeader.Core.AuctionSettings.startBid .. " gold.")
         if IsInRaid() then
             SendChatMessage(string.format("[GDKPT] Starting bid is now %d gold.", GDKPT.RaidLeader.Core.AuctionSettings.startBid), "RAID")
+            GDKPT.RaidLeader.Sync.SyncSettings()
         end
         StartBidBox:ClearFocus()
     end
@@ -283,6 +283,7 @@ SaveMinIncButton:SetScript(
                 string.format("[GDKPT] Minimum increments are now %d gold.", GDKPT.RaidLeader.Core.AuctionSettings.minIncrement),
                 "RAID"
             )
+            GDKPT.RaidLeader.Sync.SyncSettings()
         end
         MinIncBox:ClearFocus()
     end
@@ -296,6 +297,8 @@ MinIncBox:SetScript(
 )
 
 
+
+--[[
 
 
 -- Amount of players to split the total gold by
@@ -340,6 +343,7 @@ SaveSplitByCountButton:SetScript(
                 string.format("[GDKPT] The total pot will be split by %d players.", GDKPT.RaidLeader.Core.AuctionSettings.splitCount),
                 "RAID"
             )
+            GDKPT.RaidLeader.Sync.SyncSettings()
         end
         SplitByCountBox:ClearFocus()
     end
@@ -351,6 +355,9 @@ SplitByCountBox:SetScript(
         SaveSplitByCountButton:Click()
     end
 )
+
+
+]]
 
 -------------------------------------------------------------------
 -- Function gets called on addon loaded to set auction settings to saved variables
@@ -365,7 +372,7 @@ function GDKPT.RaidLeader.UI.UpdateSettingsUI()
     ExtraTimeBox:SetText(tostring(settings.extraTime))
     StartBidBox:SetText(tostring(settings.startBid))
     MinIncBox:SetText(tostring(settings.minIncrement))
-    SplitByCountBox:SetText(tostring(settings.splitCount))
+   -- SplitByCountBox:SetText(tostring(settings.splitCount))
 end
 
 
@@ -944,52 +951,12 @@ LeaderFrame:SetScript(
 
 
 
-
--------------------------------------------------------------------
--- Code for Looting
--------------------------------------------------------------------
-
-
-LeaderFrame.AnnounceAndLootButton = CreateFrame("Button", nil, LeaderFrame, "UIPanelButtonTemplate")
-LeaderFrame.AnnounceAndLootButton:SetSize(160, 22)
-LeaderFrame.AnnounceAndLootButton:SetPoint("TOP", LeaderFrame  , "BOTTOM", 0, -5)
-LeaderFrame.AnnounceAndLootButton:SetText("Announce & Auto-Loot")
-
-LeaderFrame.AnnounceAndLootButton:SetScript("OnClick", function()
-    GDKPT.RaidLeader.Looting.ProcessLoot(true) -- 'true' = auto-loot
-end)
-
-LeaderFrame.AnnounceOnlyButton = CreateFrame("Button", nil,LeaderFrame, "UIPanelButtonTemplate")
-LeaderFrame.AnnounceOnlyButton:SetSize(160, 22)
-LeaderFrame.AnnounceOnlyButton:SetPoint("TOP", LeaderFrame, "BOTTOM", 0, -40)
-LeaderFrame.AnnounceOnlyButton:SetText("Announce Only")
-
-LeaderFrame.AnnounceOnlyButton:SetScript("OnClick", function()
-    GDKPT.RaidLeader.Looting.ProcessLoot(false) -- 'false' = no auto-loot
-end)
-
-
-
-
-
-
-
-
-
-
--------------------------------------------------------------------
--- Data Export
--------------------------------------------------------------------
-
-
-
-
 -------------------------------------------------------------------
 -- Export Data Button
 -------------------------------------------------------------------
 
 local ExportDataButton = CreateFrame("Button", nil, GDKPLeaderFrame, "GameMenuButtonTemplate")
-ExportDataButton:SetPoint("BOTTOM", GDKPLeaderFrame, "BOTTOM", 0, 100)
+ExportDataButton:SetPoint("CENTER", GDKPLeaderFrame, "CENTER", -100, -80)
 ExportDataButton:SetSize(150, 30)
 ExportDataButton:SetText("Export Raid Data")
 ExportDataButton:SetNormalFontObject("GameFontNormalLarge")
@@ -1003,7 +970,8 @@ end)
 
 
 -------------------------------------------------------------------
--- 
+-- Frame exposing for other files
 -------------------------------------------------------------------
 
 GDKPT.RaidLeader.UI.GDKPLeaderFrame = GDKPLeaderFrame
+
