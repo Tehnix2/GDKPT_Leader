@@ -6,23 +6,18 @@ GDKPT.RaidLeader.Looting = {}
 ---------------------------------------------------------------------------------------
 
 
-LeaderFrame.AnnounceAndLootButton = CreateFrame("Button", "AutoMasterlootButton", LeaderFrame, "UIPanelButtonTemplate")
-LeaderFrame.AnnounceAndLootButton:SetSize(160, 22)
-LeaderFrame.AnnounceAndLootButton:SetPoint("TOP", LeaderFrame  , "BOTTOM", 0, -5)
-LeaderFrame.AnnounceAndLootButton:SetText("Announce & Auto-Loot")
+local AnnounceAndLootButton = CreateFrame("Button", "AutoMasterlootButton", GDKPT.RaidLeader.UI.LeaderFrame, "UIPanelButtonTemplate")
+AnnounceAndLootButton:SetSize(160, 22)
+AnnounceAndLootButton:SetPoint("TOP", GDKPT.RaidLeader.UI.LeaderFrame  , "BOTTOM", 0, -5)
+AnnounceAndLootButton:SetText("Announce & Auto-Loot")
 
-LeaderFrame.AnnounceAndLootButton:SetScript("OnClick", function()
-    GDKPT.RaidLeader.Looting.ProcessLoot(true) -- 'true' = auto-loot
-end)
 
-LeaderFrame.AnnounceOnlyButton = CreateFrame("Button", nil,LeaderFrame, "UIPanelButtonTemplate")
-LeaderFrame.AnnounceOnlyButton:SetSize(160, 22)
-LeaderFrame.AnnounceOnlyButton:SetPoint("TOP", LeaderFrame, "BOTTOM", 0, -40)
-LeaderFrame.AnnounceOnlyButton:SetText("Announce Only")
+local AnnounceOnlyButton = CreateFrame("Button", nil, GDKPT.RaidLeader.UI.LeaderFrame, "UIPanelButtonTemplate")
+AnnounceOnlyButton:SetSize(160, 22)
+AnnounceOnlyButton:SetPoint("TOP", GDKPT.RaidLeader.UI.LeaderFrame, "BOTTOM", 0, -40)
+AnnounceOnlyButton:SetText("Announce Only")
 
-LeaderFrame.AnnounceOnlyButton:SetScript("OnClick", function()
-    GDKPT.RaidLeader.Looting.ProcessLoot(false) -- 'false' = no auto-loot
-end)
+
 
 
 
@@ -30,7 +25,7 @@ end)
 -- Function for AutoMasterlooting
 ---------------------------------------------------------------------------------------
 
-
+-- Processes loot when the loot window is opened
 function GDKPT.RaidLeader.Looting.ProcessLoot(shouldAutoLoot)
 
     local numItems = GetNumLootItems()
@@ -86,9 +81,25 @@ function GDKPT.RaidLeader.Looting.ProcessLoot(shouldAutoLoot)
     if #lootToAnnounce > 0 then
         SendChatMessage(lootString, "RAID") 
 
-        if #mlItemsToBroadcast > 0 and mlPosition then
-            local msg = "MLOOT_ITEM:" .. table.concat(mlItemsToBroadcast, "|")
-            GDKPT.RaidLeader.MessageHandler.SafeSendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, "RAID")
+        for i, itemLink in ipairs(mlItemsToBroadcast) do
+            C_Timer.After(i * 0.3, function()  -- 0.3 second delay between each message
+                local msg = "MLOOT_ITEM:" .. itemLink
+                SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, "RAID")
+            end)
         end
     end
 end
+
+
+
+---------------------------------------------------------------------------------------
+-- Button click handlers
+---------------------------------------------------------------------------------------
+
+AnnounceAndLootButton:SetScript("OnClick", function()
+    GDKPT.RaidLeader.Looting.ProcessLoot(true) -- 'true' = auto-loot
+end)
+
+AnnounceOnlyButton:SetScript("OnClick", function()
+    GDKPT.RaidLeader.Looting.ProcessLoot(false) -- 'false' = no auto-loot
+end)

@@ -1,17 +1,30 @@
-GDKPT.RaidLeader = GDKPT.RaidLeader or {}
-
 GDKPT.RaidLeader.Core = {}
 
-GDKPT.RaidLeader.Core.version = 0.30
+GDKPT.RaidLeader.Core.version = 0.33
 
 GDKPT.RaidLeader.Core.addonPrefix = "GDKP"  
 
-GDKPT.RaidLeader.Core.PlayerWonItems = {}
-
-GDKPT.RaidLeader.Core.PotFinalized = false
 
 
-GDKPT.RaidLeader.Core.defaults = {
+-------------------------------------------------------------------
+-- Items that will not get auto looted, based on item name
+-------------------------------------------------------------------
+
+GDKPT.RaidLeader.Core.AutoLootIgnoreList = {
+    ["Nether Vortex"] = true,
+    ["Ashes of Al'ar"] = true,
+    ["Splinter of Atiesh"] = true,
+    ["Sceptre of Smiting"] = true
+}
+
+
+
+-------------------------------------------------------------------
+-- Auction Settings and reloading
+-------------------------------------------------------------------
+
+-- default auction settings
+GDKPT.RaidLeader.Core.DefaultAuctionParameters = {
     duration = 20,         
     extraTime = 5,          
     startBid = 50,         
@@ -21,68 +34,45 @@ GDKPT.RaidLeader.Core.defaults = {
 
 GDKPT.RaidLeader.Core.AuctionSettings = nil
 
-
--- Table that stores items which have already been auctioned off
-GDKPT.RaidLeader.Core.AuctionedItemInstances = GDKPT.RaidLeader.Core.AuctionedItemInstances or {}
-
-
--- Track items that cause trade window to close unexpectedly
-GDKPT_RaidLeader_BuggedItems = GDKPT_RaidLeader_BuggedItems or {}
-GDKPT.RaidLeader.Core.BuggedItems = GDKPT_RaidLeader_BuggedItems
-
-
-
-
-
-
-
-GDKPT_RaidLeader_Core_PotHistory = GDKPT_RaidLeader_Core_PotHistory or {}
-GDKPT.RaidLeader.Core.PotHistory = GDKPT_RaidLeader_Core_PotHistory
-
-function GDKPT.RaidLeader.Core.InitPotHistory()
-    local savedPotHistory = GDKPT_RaidLeader_Core_PotHistory or {}
-
-    
-    GDKPT.RaidLeader.Core.PotHistory = GDKPT_RaidLeader_Core_PotHistory
-end
-
-
-
-
-
+-- Initialize settings from saved variables or defaults
 function GDKPT.RaidLeader.Core.InitSettings()
+
     local savedSettings = GDKPT_RaidLeader_Core_AuctionSettings or {}
 
-    for k, v in pairs(GDKPT.RaidLeader.Core.defaults) do
+    -- Apply defaults for any missing settings
+    for k, v in pairs(GDKPT.RaidLeader.Core.DefaultAuctionParameters) do
         if savedSettings[k] == nil then
             savedSettings[k] = v
         end
     end
-
+    -- Save back to the saved variable
     GDKPT_RaidLeader_Core_AuctionSettings = savedSettings
     GDKPT.RaidLeader.Core.AuctionSettings = GDKPT_RaidLeader_Core_AuctionSettings
 end
 
 -------------------------------------------------------------------
--- Active Auctions
+-- Message Throttling Delay
 -------------------------------------------------------------------
 
+GDKPT.RaidLeader.Core.MessageThrottleDelay = 1.0  -- seconds between messages
 
+
+-------------------------------------------------------------------
+-- Active Auctions, used for storing data of ongoing auctions
+-------------------------------------------------------------------
+
+-- Next auction ID counter to continue from after reloads
 GDKPT.RaidLeader.Core.nextAuctionId = 1  
-
-
 
 GDKPT_RaidLeader_Core_ActiveAuctions = GDKPT_RaidLeader_Core_ActiveAuctions or {}
 GDKPT.RaidLeader.Core.ActiveAuctions = GDKPT_RaidLeader_Core_ActiveAuctions
 
-GDKPT_RaidLeader_Core_PlayerBalances = GDKPT_RaidLeader_Core_PlayerBalances or {}
-GDKPT.RaidLeader.Core.PlayerBalances = GDKPT_RaidLeader_Core_PlayerBalances
+
 
 
 function GDKPT.RaidLeader.Core.InitActiveAuctions()
-    -- Load saved auctions
+    -- Load saved active auctions
     GDKPT.RaidLeader.Core.ActiveAuctions = GDKPT_RaidLeader_Core_ActiveAuctions
-    GDKPT.RaidLeader.Core.PlayerBalances = GDKPT_RaidLeader_Core_PlayerBalances
     
     -- Find the highest auction ID to continue from
     local maxId = 0
@@ -93,14 +83,23 @@ function GDKPT.RaidLeader.Core.InitActiveAuctions()
         end
     end
     GDKPT.RaidLeader.Core.nextAuctionId = maxId + 1
-    
-    print(string.format("|cff00ff00[GDKPT Leader]|r Loaded %d saved auctions. Next ID: %d", 
-        maxId, GDKPT.RaidLeader.Core.nextAuctionId))
 end
 
 
+-------------------------------------------------------------------
+-- Table that stores AuctionedItems with index itemHash so we can more
+-- easily find duplicates. itemHash is generated from bag/slot info
+-- and timeStamp of Auction start.
+-------------------------------------------------------------------
+
+-- Initialized in GDKPT.RaidLeader.AuctionStart.StartAuction and filled in AuctionEnd
+GDKPT.RaidLeader.Core.AuctionedItems = GDKPT.RaidLeader.Core.AuctionedItems or {}
 
 
+
+-------------------------------------------------------------------
+-- Player Won Items table
+-------------------------------------------------------------------
 
 GDKPT_RaidLeader_Core_PlayerWonItems = GDKPT_RaidLeader_Core_PlayerWonItems or {}
 GDKPT.RaidLeader.Core.PlayerWonItems = GDKPT_RaidLeader_Core_PlayerWonItems
@@ -110,83 +109,46 @@ function GDKPT.RaidLeader.Core.InitPlayerWonItems()
 end
 
 
+-------------------------------------------------------------------
+-- Player Balance table
+-------------------------------------------------------------------
 
+GDKPT_RaidLeader_Core_PlayerBalances = GDKPT_RaidLeader_Core_PlayerBalances or {}
+GDKPT.RaidLeader.Core.PlayerBalances = GDKPT_RaidLeader_Core_PlayerBalances
 
-
-
-
-function GDKPT.RaidLeader.Core.ResetAllAuctions()
-    -- Send reset message first
-    local msg = "AUCTION_RESET:"
-    if IsInRaid() then
-        SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, "RAID")
-        SendChatMessage("[GDKPT] All auctions and balances have been reset.", "RAID")
-    end
-    
-    -- Clear everything
-    wipe(GDKPT.RaidLeader.Core.ActiveAuctions)
-    wipe(GDKPT_RaidLeader_Core_ActiveAuctions)
-    wipe(GDKPT.RaidLeader.Core.PlayerBalances)
-    wipe(GDKPT_RaidLeader_Core_PlayerBalances)
-    wipe(GDKPT.RaidLeader.Core.PlayerWonItems)  
-    wipe(GDKPT_RaidLeader_Core_PlayerWonItems)  
-    
-    -- Reset flags
-    GDKPT.RaidLeader.Core.nextAuctionId = 1
-    GDKPT.RaidLeader.Core.GDKP_Pot = 0
-    GDKPT.RaidLeader.Core.PotFinalized = false  
-    --GDKPT.RaidLeader.PotSplit.PotDistributed = false
-    
-    -- Update UI
-    if GDKPT.RaidLeader.UI.UpdateRosterDisplay then
-        GDKPT.RaidLeader.UI.UpdateRosterDisplay()
-    end
-
-    GDKPT.RaidLeader.PotSplit.StartPotSplitPhase = false
-
-    if GDKPT.RaidLeader.InventoryOverlay and GDKPT.RaidLeader.InventoryOverlay.UpdateAllBags then
-        GDKPT.RaidLeader.InventoryOverlay.UpdateAllBags()
-    end
-    
-    print("|cff00ff00[GDKPT Leader]|r Full reset complete.")
+function GDKPT.RaidLeader.Core.InitPlayerBalances()
+    GDKPT.RaidLeader.Core.PlayerBalances = GDKPT_RaidLeader_Core_PlayerBalances
 end
 
 
+-------------------------------------------------------------------
+-- Total Gold Pot
+-------------------------------------------------------------------
 
-
-
-GDKPT.RaidLeader.Core.GDKP_Pot = 0        
-
-
-GDKPT.RaidLeader.Core.AuctionedItems = GDKPT.RaidLeader.Core.AuctionedItems or {}
-
-
-
-
+GDKPT.RaidLeader.Core.GDKP_Pot = 0 
 
 
 
 -------------------------------------------------------------------
--- Items that will not get auto looted, based on item name
+-- Pot Split
 -------------------------------------------------------------------
 
-
-GDKPT.RaidLeader.Core.AutoLootIgnoreList = {
-    ["Nether Vortex"] = true,
-    ["Ashes of Al'ar"] = true,
-    ["Splinter of Atiesh"] = true,
-    
-}
+GDKPT.RaidLeader.Core.PotFinalized = false
 
 
 
-GDKPT.RaidLeader.Core.TradeSession = {} -- To store active trade data
+-------------------------------------------------------------------
+-- Standardized RaidLeader addon [GDKPT RaidLeader] print string
+-------------------------------------------------------------------
+
+GDKPT.RaidLeader.Core.addonPrintString = "|cff00ff00[GDKPT Leader]|r "
+GDKPT.RaidLeader.Core.errorPrintString = "|cffff0000[GDKPT Leader]|r "
 
 
 
-if GDKPT_RaidLeader_UpdateSettingsUI then
-    GDKPT_RaidLeader_UpdateSettingsUI()
-end
+
+
+
 
 
 
@@ -209,19 +171,19 @@ SlashCmdList["GDKPTLEADER"] = function(message)
         print("  /gdkpleader syncsettings - sends global gdkp parameters to raidmembers")
         print("  /gdkpleader version - shows current leader addon version")
         print("  /gdkpleader versioncheck - causes everyone to post their GDKPT version in raid chat")
-    elseif cmd == "auction" or cmd == "a" then
-        GDKPT.RaidLeader.AuctionStart.StartAuction(param)
+    elseif cmd == "auction" or cmd == "a" then 
+       GDKPT.RaidLeader.AuctionStart.StartAuctionFromSlashCommand()
     elseif cmd == "hide" or cmd == "h" then
         --   GDKPLeaderFrame:Hide()
     elseif cmd == "reset" or cmd == "r" then
-        GDKPT.RaidLeader.Core.ResetAllAuctions()
+        GDKPT.RaidLeader.Reset.ResetAllAuctions()
     elseif cmd == "show" or cmd == "s" then
         GDKPLeaderFrame:Show()
     elseif cmd == "syncdata" or cmd == "sendauctiondata" then
         --    SendAuctionData()
         print("Auction Data is sent to raidmembers.")
     elseif cmd == "syncsettings" or cmd == "sendsettings" then
-        print("Sending global GDKP settings to raidmembers.") --TODO: Create SendSettings function to re-send the global settings to member addon
+        print("Sending global GDKP settings to raidmembers.") 
         SyncSettings()
     elseif cmd == "version" or cmd == "v" or cmd == "vers" then
         print("Current GDKPT Leader Addon Version: " .. version)

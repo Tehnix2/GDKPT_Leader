@@ -1,5 +1,24 @@
 GDKPT.RaidLeader.Export = {}
 
+
+-------------------------------------------------------------------
+-- Export Data Button
+-------------------------------------------------------------------
+
+local ExportDataButton = CreateFrame("Button", nil, GDKPT.RaidLeader.UI.GDKPLeaderFrame, "GameMenuButtonTemplate")
+ExportDataButton:SetPoint("CENTER", GDKPT.RaidLeader.UI.GDKPLeaderFrame, "CENTER", -100, -80)
+ExportDataButton:SetSize(150, 30)
+ExportDataButton:SetText("Export Raid Data")
+ExportDataButton:SetNormalFontObject("GameFontNormalLarge")
+ExportDataButton:SetHighlightFontObject("GameFontHighlightLarge")
+
+ExportDataButton:SetScript("OnClick", function()
+    if GDKPT.RaidLeader.Export and GDKPT.RaidLeader.Export.Show then
+        GDKPT.RaidLeader.Export.Show()
+    end
+end)
+
+
 -------------------------------------------------------------------
 -- Main Export Frame
 -------------------------------------------------------------------

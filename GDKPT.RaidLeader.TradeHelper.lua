@@ -3,6 +3,12 @@ GDKPT.RaidLeader.TradeHelper = {}
 local TradeHelperFrame = nil
 local itemButtons = {}
 
+local ITEM_STATE = {
+    PENDING = 1,
+    IN_TRADE = 2,
+    TRADED = 3
+}
+
 -------------------------------------------------------------------
 -- Create the Trade Helper Frame
 -------------------------------------------------------------------
@@ -77,66 +83,148 @@ local function GetNextEmptyTradeSlot()
     return nil -- All slots full
 end
 
+
+
+
+
 -------------------------------------------------------------------
 -- Find item in bags and place in trade
 -------------------------------------------------------------------
+
 local function PlaceItemInTrade(itemID, itemLink, wonItem)
+    -- Prevent placing if already in trade
+    if wonItem.inTradeSlot then
+        print("|cffff8800[GDKPT]|r This item is already in the trade window!")
+        return false
+    end
+    
     local tradeSlot = GetNextEmptyTradeSlot()
     if not tradeSlot then
         print("|cffff0000[GDKPT]|r Trade window is full! Remove items or complete trade first.")
         return false
     end
     
-    -- Find the item in bags
-    for bagID = 0, 4 do
-        for slotID = 1, GetContainerNumSlots(bagID) do
-            local bagItemLink = GetContainerItemLink(bagID, slotID)
-            if bagItemLink and tonumber(bagItemLink:match("item:(%d+)")) == itemID then
-                local _, stackSize = GetContainerItemInfo(bagID, slotID)
-                stackSize = stackSize or 1
-                
-                -- Place in trade
-                PickupContainerItem(bagID, slotID)
-                ClickTradeButton(tradeSlot)
-                
-                -- Track this placement
-                if not GDKPT.RaidLeader.Trading.CurrentTrade.itemsOffered then
-                    GDKPT.RaidLeader.Trading.CurrentTrade.itemsOffered = {}
+    -- Try to find item by hash if available
+    local foundBag, foundSlot = nil, nil
+    
+    if wonItem.itemHash then
+        -- Search for item matching this specific hash
+        for bagID = 0, 4 do
+            for slotID = 1, GetContainerNumSlots(bagID) do
+                local bagItemLink = GetContainerItemLink(bagID, slotID)
+                if bagItemLink then
+                    local bagItemID = tonumber(bagItemLink:match("item:(%d+)"))
+                    if bagItemID == itemID then
+                        -- Check if this specific instance matches the hash
+                        local texture, count = GetContainerItemInfo(bagID, slotID)
+                        local itemString = bagItemLink:match("item:([%-?%d:]+)")
+
+                        -- Extract key parts from both hashes for comparison
+                        local wonHashParts = {wonItem.itemHash:match("^([^_]+)_(%d+)_(%d+)")}
+                        local bagHashString = string.format("%s_%d_%d", itemString or "", bagID, slotID)
+                        
+                        -- Match if itemString matches AND it's the right quantity
+                        if wonItem.itemHash:find(itemString) and count == wonItem.remainingQuantity then
+                            foundBag = bagID
+                            foundSlot = slotID
+                            break
+                        end
+                    end
                 end
-                
-                table.insert(GDKPT.RaidLeader.Trading.CurrentTrade.itemsOffered, {
-                    wonItem = wonItem,
-                    stackSize = stackSize,
-                    itemID = itemID,
-                    itemLink = itemLink,
-                    placementOrder = tradeSlot
-                })
-                
-                print(string.format("|cff00ff00[GDKPT]|r Placed %s in trade slot %d", itemLink, tradeSlot))
-                
-                -- Refresh the helper frame to show updated status
-                C_Timer.After(0.1, function()
-                    GDKPT.RaidLeader.TradeHelper.Update()
-                end)
-                
-                return true
             end
+            if foundBag then break end
         end
     end
     
-    print("|cffff0000[GDKPT]|r Could not find " .. itemLink .. " in your bags!")
-    return false
+    -- Fallback: Find by itemID only (for items added before hash tracking)
+    if not foundBag then
+        for bagID = 0, 4 do
+            for slotID = 1, GetContainerNumSlots(bagID) do
+                local bagItemLink = GetContainerItemLink(bagID, slotID)
+                if bagItemLink and tonumber(bagItemLink:match("item:(%d+)")) == itemID then
+                    foundBag = bagID
+                    foundSlot = slotID
+                    break
+                end
+            end
+            if foundBag then break end
+        end
+    end
+    
+    if not foundBag or not foundSlot then
+        print("|cffff0000[GDKPT]|r Could not find " .. itemLink .. " in your bags!")
+        return false
+    end
+    
+    local _, stackSize = GetContainerItemInfo(foundBag, foundSlot)
+    stackSize = stackSize or 1
+    
+    -- Place in trade
+    PickupContainerItem(foundBag, foundSlot)
+    ClickTradeButton(tradeSlot)
+    
+    -- Mark item as in trade
+    wonItem.inTradeSlot = tradeSlot
+    wonItem.itemState = ITEM_STATE.IN_TRADE
+    
+    -- Track this placement
+    if not GDKPT.RaidLeader.ItemTrading.CurrentTrade.itemsOffered then
+        GDKPT.RaidLeader.ItemTrading.CurrentTrade.itemsOffered = {}
+    end
+    
+    table.insert(GDKPT.RaidLeader.ItemTrading.CurrentTrade.itemsOffered, {
+        wonItem = wonItem,
+        stackSize = stackSize,
+        itemID = itemID,
+        itemLink = itemLink,
+        placementOrder = tradeSlot,
+        itemHash = wonItem.itemHash  -- NEW: Track which specific instance was placed
+    })
+    
+    print(string.format("|cff00ff00[GDKPT]|r Placed %s in trade slot %d (Auction #%d)", 
+        itemLink, tradeSlot, wonItem.auctionId or 0))
+    
+    -- Refresh the helper frame
+    C_Timer.After(0.1, function()
+        GDKPT.RaidLeader.TradeHelper.Update()
+    end)
+    
+    return true
 end
+
+
+
+
+
+
+-- Add this new function to check what's actually in trade slots:
+local function GetItemsCurrentlyInTrade()
+    local itemsInTrade = {}
+    for slot = 1, 6 do
+        local itemLink = GetTradePlayerItemLink(slot)
+        if itemLink then
+            local itemID = tonumber(itemLink:match("item:(%d+)"))
+            if itemID then
+                itemsInTrade[itemID] = slot
+            end
+        end
+    end
+    return itemsInTrade
+end
+
 
 -------------------------------------------------------------------
 -- Create item row button
 -------------------------------------------------------------------
+
+
+-- Replace CreateItemButton function - add tooltip support:
 local function CreateItemButton(parent, index)
     local btn = CreateFrame("Button", nil, parent)
     btn:SetWidth(260)
     btn:SetHeight(30)
     btn:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
-    
+
     -- Background
     local bg = btn:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints(btn)
@@ -146,27 +234,33 @@ local function CreateItemButton(parent, index)
         bg:SetColorTexture(0.15, 0.15, 0.15, 0.5)
     end
     btn.bg = bg
-    
+
     -- Item icon
     local icon = btn:CreateTexture(nil, "ARTWORK")
     icon:SetSize(24, 24)
     icon:SetPoint("LEFT", btn, "LEFT", 5, 0)
     btn.icon = icon
-    
+
     -- Item name
     local name = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     name:SetPoint("LEFT", icon, "RIGHT", 5, 0)
-    name:SetPoint("RIGHT", btn, "RIGHT", -60, 0)
+    name:SetPoint("RIGHT", btn, "RIGHT", -80, 0)
     name:SetJustifyH("LEFT")
     name:SetWordWrap(false)
     btn.name = name
-    
+
+    -- Status indicator
+    local status = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    status:SetPoint("RIGHT", btn, "RIGHT", -40, 0)
+    status:SetTextColor(1, 0.84, 0)
+    btn.status = status
+
     -- Price
     local price = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     price:SetPoint("RIGHT", btn, "RIGHT", -5, 0)
     price:SetTextColor(1, 0.84, 0)
     btn.price = price
-    
+
     -- Checkmark (when traded)
     local check = btn:CreateTexture(nil, "OVERLAY")
     check:SetSize(20, 20)
@@ -174,41 +268,101 @@ local function CreateItemButton(parent, index)
     check:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
     check:Hide()
     btn.check = check
-    
-    -- Tooltip
-    btn:SetScript("OnEnter", function(self)
-        if self.itemLink then
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetHyperlink(self.itemLink)
-            GameTooltip:Show()
-        end
-    end)
-    btn:SetScript("OnLeave", function(self)
-        GameTooltip:Hide()
-    end)
-    
-    -- Click handler
-    btn:SetScript("OnClick", function(self)
-        if self.wonItem and self.itemID and self.itemLink then
-            if self.wonItem.fullyTraded then
-                print("|cffff8800[GDKPT]|r This item has already been traded!")
-            else
-                PlaceItemInTrade(self.itemID, self.itemLink, self.wonItem)
+
+    -- Update the tooltip in CreateItemButton to show auction-specific info:
+    btn:SetScript(
+        "OnEnter",
+        function(self)
+            if self.itemLink then
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetHyperlink(self.itemLink)
+
+                -- Add auction information if available
+                if self.wonItem and self.wonItem.itemHash then
+                    -- Find the specific auction by hash
+                    local auctionData = GDKPT.RaidLeader.Core.AuctionedItems[self.wonItem.itemHash]
+
+                    if auctionData and auctionData.hasEnded then
+                        GameTooltip:AddLine(" ")
+                        GameTooltip:AddLine("|cff00ff00 This item has been auctioned|r", 1, 1, 1)
+
+                        if auctionData.auctionId then
+                            GameTooltip:AddLine(
+                                "|cffaaaaaa  Auction ID: " .. auctionData.auctionId .. "|r",
+                                0.7,
+                                0.7,
+                                0.7
+                            )
+                        end
+
+                        if auctionData.winner and auctionData.winner ~= "Bulk" then
+                            GameTooltip:AddLine("|cff00ccff  Winner: " .. auctionData.winner .. "|r", 0, 0.8, 1)
+
+                            if auctionData.winningBid and auctionData.winningBid > 0 then
+                                GameTooltip:AddLine(
+                                    string.format("|cffffd700  Winning Bid: %d gold|r", auctionData.winningBid),
+                                    1,
+                                    0.84,
+                                    0
+                                )
+                            end
+                        end
+                    end
+                end
+
+                -- Show trade status
+                if self.wonItem and self.wonItem.inTradeSlot then
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine(
+                        "|cffffaa00Currently in trade slot " .. self.wonItem.inTradeSlot .. "|r",
+                        1,
+                        0.7,
+                        0
+                    )
+                end
+
+                GameTooltip:Show()
             end
         end
-    end)
-    
+    )
+
+
+    btn:SetScript("OnClick", function(self)
+    if not self.wonItem then return end
+    if self.wonItem.fullyTraded then
+        print("|cffff0000[GDKPT]|r This item has already been traded.")
+        return
+    end
+
+    if not TradeFrame or not TradeFrame:IsShown() then
+        print("|cffff8800[GDKPT]|r Open the trade window before placing items.")
+        return
+    end
+
+    -- Attempt to place the item in trade
+    PlaceItemInTrade(self.itemID, self.itemLink, self.wonItem)
+
+end)
+
+
+
+
     return btn
 end
+
+
+
 
 -------------------------------------------------------------------
 -- Update the Trade Helper Frame with current trade partner's items
 -------------------------------------------------------------------
+
+
 function GDKPT.RaidLeader.TradeHelper.Update()
     local frame = TradeHelperFrame
     if not frame or not frame:IsShown() then return end
     
-    local partner = GDKPT.RaidLeader.Trading.CurrentTrade.partner
+    local partner = GDKPT.RaidLeader.ItemTrading.CurrentTrade.partner
     if not partner then
         frame:Hide()
         return
@@ -217,7 +371,7 @@ function GDKPT.RaidLeader.TradeHelper.Update()
     -- Update player name
     frame.playerName:SetText("Trading with: " .. partner)
     
-    -- Get won items for this player
+    --  Get fresh won items data
     local wonItems = GDKPT.RaidLeader.Core.PlayerWonItems[partner]
     if not wonItems or #wonItems == 0 then
         frame.playerName:SetText(partner .. " - No items to trade")
@@ -226,6 +380,25 @@ function GDKPT.RaidLeader.TradeHelper.Update()
             btn:Hide()
         end
         return
+    end
+    
+    -- Check what's currently in trade slots
+    local itemsInTrade = GetItemsCurrentlyInTrade()
+    
+    -- Update all won items with current trade status
+    for _, wonItem in ipairs(wonItems) do
+        local itemID = wonItem.itemID
+        if itemsInTrade[itemID] then
+            wonItem.inTradeSlot = itemsInTrade[itemID]
+            wonItem.itemState = ITEM_STATE.IN_TRADE
+        else
+            wonItem.inTradeSlot = nil
+            if not wonItem.fullyTraded then
+                wonItem.itemState = ITEM_STATE.PENDING
+            else
+                wonItem.itemState = ITEM_STATE.TRADED
+            end
+        end
     end
     
     -- Update scroll child height
@@ -271,14 +444,25 @@ function GDKPT.RaidLeader.TradeHelper.Update()
         -- Initialize remaining quantity
         wonItem.remainingQuantity = wonItem.remainingQuantity or wonItem.stackCount
         
-        -- Show price or checkmark
+        -- IMPROVED: Show status based on current state
         if wonItem.fullyTraded then
+            btn.status:Hide()
             btn.price:Hide()
             btn.check:Show()
             btn:SetAlpha(0.5)
             btn:Disable()
-        else
+        elseif wonItem.inTradeSlot then
+            -- Item is currently in trade window
             btn.check:Hide()
+            btn.price:Hide()
+            btn.status:Show()
+            btn.status:SetText("|cffffaa00[Slot " .. wonItem.inTradeSlot .. "]|r")
+            btn:SetAlpha(0.7)
+            btn:Disable()
+        else
+            -- Item is pending
+            btn.check:Hide()
+            btn.status:Hide()
             btn.price:Show()
             btn:SetAlpha(1)
             btn:Enable()
@@ -300,6 +484,9 @@ function GDKPT.RaidLeader.TradeHelper.Update()
         itemButtons[i]:Hide()
     end
 end
+
+
+
 
 -------------------------------------------------------------------
 -- Show the Trade Helper Frame
@@ -326,8 +513,12 @@ local helperEventFrame = CreateFrame("Frame")
 helperEventFrame:RegisterEvent("TRADE_SHOW")
 helperEventFrame:RegisterEvent("TRADE_CLOSED")
 helperEventFrame:RegisterEvent("TRADE_PLAYER_ITEM_CHANGED")
+helperEventFrame:RegisterEvent("TRADE_TARGET_ITEM_CHANGED")
 
-helperEventFrame:SetScript("OnEvent", function(self, event, ...)
+
+
+
+helperEventFrame:SetScript("OnEvent", function(self, event, slotID)
     if event == "TRADE_SHOW" then
         -- Only show in raid and if master looter
         if IsInRaid() then
@@ -343,15 +534,28 @@ helperEventFrame:SetScript("OnEvent", function(self, event, ...)
         end
         
     elseif event == "TRADE_CLOSED" then
+        -- Clear all inTradeSlot markers when trade closes
+        if GDKPT.RaidLeader.ItemTrading.CurrentTrade.partner then
+            local wonItems = GDKPT.RaidLeader.Core.PlayerWonItems[GDKPT.RaidLeader.ItemTrading.CurrentTrade.partner]
+            if wonItems then
+                for _, item in ipairs(wonItems) do
+                    item.inTradeSlot = nil
+                end
+            end
+        end
         GDKPT.RaidLeader.TradeHelper.Hide()
         
-    elseif event == "TRADE_PLAYER_ITEM_CHANGED" then
+    elseif event == "TRADE_PLAYER_ITEM_CHANGED" or event == "TRADE_TARGET_ITEM_CHANGED" then
         -- Update when items change in trade window
-        C_Timer.After(0.1, function()
-            GDKPT.RaidLeader.TradeHelper.Update()
+        C_Timer.After(0.05, function()
+            if TradeHelperFrame and TradeHelperFrame:IsShown() then
+                GDKPT.RaidLeader.TradeHelper.Update()
+            end
         end)
     end
 end)
+
+
 
 -------------------------------------------------------------------
 -- Manual toggle command
@@ -370,5 +574,3 @@ SlashCmdList["GDKPTTRADEHELPER"] = function(msg)
         end
     end
 end
-
-print("|cff00ff00[GDKPT]|r Trade Helper loaded. Use /gdkpthelper to toggle.")

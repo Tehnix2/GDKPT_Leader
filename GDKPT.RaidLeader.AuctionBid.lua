@@ -3,84 +3,94 @@ GDKPT.RaidLeader.AuctionBid = {}
 
 
 -------------------------------------------------------------------
--- HandleBid() function is triggered from the event frame below
--- whenever a raidmember is bidding on an item
+--- Function to handle incoming bids from raid members
 -------------------------------------------------------------------
 
 local function HandleBid(sender, auctionId, bidAmount)
-    auctionId = tonumber(auctionId)
-    bidAmount = tonumber(bidAmount)
+
     local auction = GDKPT.RaidLeader.Core.ActiveAuctions[auctionId]
     
     if not auction then
         return
     end 
     
-
-    --  Check if auction has already ended
-    -- This prevents late bids from being processed after the auction timer expires
+    -- Reject bids on ended auctions
     if auction.hasEnded then
-        print(string.format("|cffff8800[GDKPT Leader]|r Rejected late bid from %s on auction %d (already ended)", sender, auctionId))
+        print(string.format(GDKPT.RaidLeader.Core.errorPrintString .. "Rejected late bid from %s on auction %d.", sender, auctionId))
         return
     end
 
-    if bidAmount and bidAmount < auction.currentBid + GDKPT.RaidLeader.Core.AuctionSettings.minIncrement then
-        print("Incoming bid is incorrect")
+    -- Validate bid amount
+    -- If a players' bid amount is deemed invalid (probably because another player clicked the button very shortly before them), then their bidButton is re-enabled
+
+    if bidAmount and bidAmount < auction.currentBid + GDKPT.RaidLeader.Core.AuctionSettings.minIncrement and not auction.hasEnded then
+        print(string.format(GDKPT.RaidLeader.Core.errorPrintString .. "%s did an invalid bid, their bidButton is enabled again."),sender)
+        SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix,"AUCTION_BID_REENABLE","WHISPER",sender)
         return
     end
 
-    -- Additional safety check: reject bids if auction time has expired
+    -- Reject bids if auction time has expired
     if time() >= auction.endTime then
-        print(string.format("|cffff8800[GDKPT Leader]|r Rejected late bid from %s on auction %d (time expired)", sender, auctionId))
+        print(string.format(GDKPT.RaidLeader.Core.errorPrintString .. "Rejected late bid from %s on auction %d (time expired)", sender, auctionId))
         return
     end
     
+    -- Accept the bid
     if bidAmount and sender then
-        auction.currentBid = bidAmount
-        auction.topBidder = sender
+        auction.currentBid = bidAmount 
+        auction.topBidder = sender     
+
+        -- Timer Cap System
+        -- Calculate timer cap (half of original duration)
+        local timerCap = math.floor(auction.duration / 2)
+        local currentRemaining = auction.endTime - time()
+
+        -- Always add the extra time first
+        local newRemaining = currentRemaining + GDKPT.RaidLeader.Core.AuctionSettings.extraTime
+
+        -- Apply the timer cap logic
+        if currentRemaining > timerCap then
+            -- Between 31-60 seconds: cannot exceed full duration
+            newRemaining = math.min(newRemaining, auction.duration)
+        else
+            -- At or below 30 seconds: cannot exceed 30 seconds total
+            if newRemaining > timerCap then
+                newRemaining = timerCap
+            end
+        end
         
-        -- Add extra time
-        auction.endTime = auction.endTime + GDKPT.RaidLeader.Core.AuctionSettings.extraTime
+        auction.endTime = time() + newRemaining
+
         
         -- Calculate remaining time from current server time
-        local remainingTime = auction.endTime - time()
+        local remainingTime = auction.endTime - time()   -- remainingTime = newRemaining is actually incorrect here, why?
         
-        -- Send the update with remaining time instead of absolute endTime
         local updateMsg = string.format(
             "AUCTION_UPDATE:%d:%d:%s:%d:%d:%s",
             auctionId,
             auction.currentBid,
             auction.topBidder,
-            remainingTime, -- Send remaining time, not absolute endTime
+            remainingTime, 
             auction.itemID,
             auction.itemLink
         )
         
-        GDKPT.RaidLeader.MessageHandler.SafeSendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, updateMsg, "RAID")
-        SendChatMessage(
-            string.format(
-                "[GDKPT] %s is now the highest bidder on %s with %d gold! ",
-                auction.topBidder,
-                auction.itemLink,
-                auction.currentBid
-            ),
-            "RAID"
-        )
+        SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, updateMsg, "RAID")
+        SendChatMessage(string.format("[GDKPT] %s is now the highest bidder on %s with %d gold! ",auction.topBidder,auction.itemLink,auction.currentBid),"RAID")
     end
 end
 
 
 
 -------------------------------------------------------------------
--- eventFrame that receives incoming messages from raid member Addon
--- gets called when a player is bidding on an item (manual or bidButton)
+--- Frame to receive and process incoming bid messages
 -------------------------------------------------------------------
 
 
-local eventFrame = CreateFrame("Frame")
-eventFrame:RegisterEvent("CHAT_MSG_ADDON")
+local bidReceiverFrame = CreateFrame("Frame")
+bidReceiverFrame:RegisterEvent("CHAT_MSG_ADDON")
 
-eventFrame:SetScript(
+bidReceiverFrame:SetScript(
     "OnEvent",
     function(self, event, prefix, msg, channel, sender)
         if prefix ~= GDKPT.RaidLeader.Core.addonPrefix or not GDKPT.RaidLeader.Utils.IsSenderInMyRaid(sender) then
@@ -90,7 +100,7 @@ eventFrame:SetScript(
         local cmd, data = msg:match("([^:]+):(.*)")
         if cmd == "BID" then
             local auctionId, bidAmount = data:match("([^:]+):([^:]+)")
-            HandleBid(sender, auctionId, bidAmount)
+            HandleBid(sender, tonumber(auctionId), tonumber(bidAmount))
         end
     end
 )

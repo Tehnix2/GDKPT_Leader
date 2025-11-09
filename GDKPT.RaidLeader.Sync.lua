@@ -1,10 +1,23 @@
-GDKPT.RaidLeader.SyncSettings = {}
-
 GDKPT.RaidLeader.Sync = {}
 
+
 -------------------------------------------------------------------
--- Button to sync the current auction settings to raidmembers
+-- Button on the GDKPLeaderFrame to sync the current auction 
+-- settings to raidmembers
 -------------------------------------------------------------------
+
+local SyncSettingsButton = CreateFrame("Button", nil, GDKPT.RaidLeader.UI.GDKPLeaderFrame, "GameMenuButtonTemplate")
+SyncSettingsButton:SetPoint("CENTER", GDKPT.RaidLeader.UI.GDKPLeaderFrame, "CENTER", -100, -50)
+SyncSettingsButton:SetSize(150, 20)
+SyncSettingsButton:SetText("Sync Settings")
+SyncSettingsButton:SetNormalFontObject("GameFontNormalLarge")
+SyncSettingsButton:SetHighlightFontObject("GameFontHighlightLarge")
+
+
+-------------------------------------------------------------------
+-- Function to sync current auction settings to raidmembers
+-------------------------------------------------------------------
+
 
 local function SyncSettings()
     local data =
@@ -14,26 +27,18 @@ local function SyncSettings()
         GDKPT.RaidLeader.Core.AuctionSettings.extraTime,
         GDKPT.RaidLeader.Core.AuctionSettings.startBid,
         GDKPT.RaidLeader.Core.AuctionSettings.minIncrement,
-        GetNumRaidMembers()
-        --GDKPT.RaidLeader.Core.AuctionSettings.splitCount
+        GetNumRaidMembers()  -- should be removed in fute versions
     )
 
     if IsInRaid() then
         SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, "SETTINGS:" .. data, "RAID")
-        print("|cff00ff00[GDKPT Leader]|r Sync current auction settings to raid members.")
-    else
-        print("|cffff8800[GDKPT Leader]|r Must be in a raid to sync settings.")
     end
 end
 
 
-
-local SyncSettingsButton = CreateFrame("Button", nil, GDKPLeaderFrame, "GameMenuButtonTemplate")
-SyncSettingsButton:SetPoint("CENTER", GDKPLeaderFrame, "CENTER", -100, -50)
-SyncSettingsButton:SetSize(150, 20)
-SyncSettingsButton:SetText("Sync Settings")
-SyncSettingsButton:SetNormalFontObject("GameFontNormalLarge")
-SyncSettingsButton:SetHighlightFontObject("GameFontHighlightLarge")
+-------------------------------------------------------------------
+-- Hook up button to sync current auction settings to raidmembers
+-------------------------------------------------------------------
 
 SyncSettingsButton:SetScript(
     "OnClick",
@@ -42,101 +47,39 @@ SyncSettingsButton:SetScript(
     end
 )
 
--- Expose sync settings function
-GDKPT.RaidLeader.Sync.SyncSettings = SyncSettings
+
 
 
 -------------------------------------------------------------------
---
+-- Button in the GDKPLeaderFrame to sync current auctions
 -------------------------------------------------------------------
 
 
-local ResetAuctionsButton = CreateFrame("Button", nil, GDKPLeaderFrame, "GameMenuButtonTemplate")
-ResetAuctionsButton:SetPoint("BOTTOM", GDKPLeaderFrame, "BOTTOM", 0, 100)
-ResetAuctionsButton:SetSize(150, 20)
-ResetAuctionsButton:SetText("Reset All Auctions")
-ResetAuctionsButton:SetNormalFontObject("GameFontNormalLarge")
-ResetAuctionsButton:SetHighlightFontObject("GameFontHighlightLarge")
-
-ResetAuctionsButton:SetScript("OnClick", function()
-    StaticPopupDialogs["GDKPT_CONFIRM_RESET"] = {
-        text = "Are you sure you want to reset ALL auctions and player balances? This cannot be undone!",
-        button1 = "Yes, Reset Everything",
-        button2 = "Cancel",
-        OnAccept = function()
-            GDKPT.RaidLeader.Core.ResetAllAuctions()
-        end,
-        timeout = 0,
-        whileDead = true,
-        hideOnEscape = true,
-        preferredIndex = 3,
-    }
-    StaticPopup_Show("GDKPT_CONFIRM_RESET")
-end)
-
-local SyncAuctionsButton = CreateFrame("Button", nil, GDKPLeaderFrame, "GameMenuButtonTemplate")
-SyncAuctionsButton:SetPoint("CENTER", GDKPLeaderFrame, "CENTER", 100, -80)
+local SyncAuctionsButton = CreateFrame("Button", nil, GDKPT.RaidLeader.UI.GDKPLeaderFrame, "GameMenuButtonTemplate")
+SyncAuctionsButton:SetPoint("CENTER", GDKPT.RaidLeader.UI.GDKPLeaderFrame, "CENTER", 100, -50)
 SyncAuctionsButton:SetSize(150, 20)
 SyncAuctionsButton:SetText("Sync Auctions")
 SyncAuctionsButton:SetNormalFontObject("GameFontNormalLarge")
 SyncAuctionsButton:SetHighlightFontObject("GameFontHighlightLarge")
 
-SyncAuctionsButton:SetScript("OnClick", function()
-    if GDKPT.RaidLeader.SyncSettings and GDKPT.RaidLeader.SyncSettings.SyncActiveAuctions then
-        GDKPT.RaidLeader.SyncSettings.SyncActiveAuctions()
-    end
-end)
 
 
-local function SyncActiveAuctions(targetPlayer)
-    local channel = targetPlayer and "WHISPER" or "RAID"
+
+
+-------------------------------------------------------------------
+-- Function to send current active auctions to a channel
+-------------------------------------------------------------------
+
+local function SendActiveAuctions(activeAuctions, channel, targetPlayer, messageDelay, delayIncrement)
     local target = targetPlayer or nil
-    
-    local activeAuctions = {}
-    local completedAuctions = {}
-    
-    -- Initialize pot and clear player balances before rebuilding
-    local rebuiltPot = 0
-    if wipe then
-        wipe(GDKPT.RaidLeader.Core.PlayerBalances)
-    else
-        GDKPT.RaidLeader.Core.PlayerBalances = {}
-    end
 
-    -- Separate active and completed auctions and rebuild pot/balances
-    for auctionId, auction in pairs(GDKPT.RaidLeader.Core.ActiveAuctions) do
-        if auction.hasEnded then
-            table.insert(completedAuctions, {id = auctionId, auction = auction})
-        else
-            table.insert(activeAuctions, {id = auctionId, auction = auction})
-        end
-
-        -- Rebuild pot and player balances from ALL auctions
-        if auction.currentBid and auction.currentBid > 0 then
-            rebuiltPot = rebuiltPot + auction.currentBid
-            
-            if auction.topBidder and auction.topBidder ~= "" then
-                local player = auction.topBidder
-                if not GDKPT.RaidLeader.Core.PlayerBalances[player] then
-                    GDKPT.RaidLeader.Core.PlayerBalances[player] = 0
-                end
-                GDKPT.RaidLeader.Core.PlayerBalances[player] = 
-                    GDKPT.RaidLeader.Core.PlayerBalances[player] - auction.currentBid
-            end
-        end
-    end
-
-    local messageDelay = 0
-    local delayIncrement = 0.5  -- Increased from 0.1 to reduce message spam
-
-    -- Send active auctions
     for _, data in ipairs(activeAuctions) do
         local auction = data.auction
         local auctionId = data.id
         local remainingDuration = math.max(0, auction.endTime - time())
         local stackCount = auction.stackCount or 
             GDKPT.RaidLeader.Utils.GetInventoryStackCount(auction.itemLink) or 1
-    
+
         local msg = string.format(
             "AUCTION_START:%d:%d:%d:%d:%d:%d:%s",
             auctionId,
@@ -147,49 +90,53 @@ local function SyncActiveAuctions(targetPlayer)
             stackCount,
             auction.itemLink
         )
-        
+
         C_Timer.After(messageDelay, function()
             if targetPlayer then
                 SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, channel, target)
             else
-                GDKPT.RaidLeader.MessageHandler.SafeSendAddonMessage(
-                    GDKPT.RaidLeader.Core.addonPrefix, msg, channel)
+                SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, channel)
             end
-            
-            -- Send current bid if present
+
+            -- Send auction update message if bid exists
             if auction.currentBid > 0 and auction.topBidder ~= "" then
                 C_Timer.After(0.25, function()
-                    local remainingTimeForUpdate = math.max(0, auction.endTime - time())
                     local updateMsg = string.format(
                         "AUCTION_UPDATE:%d:%d:%s:%d:%d:%s",
                         auctionId,
                         auction.currentBid,
                         auction.topBidder,
-                        remainingTimeForUpdate,
+                        remainingDuration,
                         auction.itemID,
                         auction.itemLink
                     )
-                    
                     if targetPlayer then
-                        SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, 
-                            updateMsg, channel, target)
+                        SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, updateMsg, channel, target)
                     else
-                        GDKPT.RaidLeader.MessageHandler.SafeSendAddonMessage(
-                            GDKPT.RaidLeader.Core.addonPrefix, updateMsg, channel)
+                        SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, updateMsg, channel)
                     end
                 end)
             end
         end)
-        
+
         messageDelay = messageDelay + delayIncrement
     end
 
-    -- Send completed auctions
+    return messageDelay
+end
+
+
+
+-------------------------------------------------------------------
+-- Function to send completed auctions to a channel
+-------------------------------------------------------------------
+
+local function SendCompletedAuctions(completedAuctions, channel, targetPlayer, messageDelay, delayIncrement)
+    local target = targetPlayer or nil
     for _, data in ipairs(completedAuctions) do
         local auction = data.auction
         local auctionId = data.id
         local stackCount = auction.stackCount or 1
-        
         C_Timer.After(messageDelay, function()
             -- Send start message with 0 duration for completed auctions
             local msg = string.format(
@@ -202,14 +149,11 @@ local function SyncActiveAuctions(targetPlayer)
                 stackCount,
                 auction.itemLink
             )
-            
             if targetPlayer then
                 SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, channel, target)
             else
-                GDKPT.RaidLeader.MessageHandler.SafeSendAddonMessage(
-                    GDKPT.RaidLeader.Core.addonPrefix, msg, channel)
+                SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, channel)
             end
-            
             -- Send end message
             C_Timer.After(0.25, function()
                 local endMsg = string.format(
@@ -217,34 +161,74 @@ local function SyncActiveAuctions(targetPlayer)
                     auctionId,
                     auction.currentBid or 0,
                     auction.itemID,
-                    auction.topBidder or "",  -- FIXED: Changed from "Bulk" to ""
+                    auction.topBidder or "",  
                     auction.currentBid or 0
                 )
-                
                 if targetPlayer then
                     SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, endMsg, channel, target)
                 else
-                    GDKPT.RaidLeader.MessageHandler.SafeSendAddonMessage(
-                        GDKPT.RaidLeader.Core.addonPrefix, endMsg, channel)
+                    SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, endMsg, channel)
                 end
             end)
         end)
-        
         messageDelay = messageDelay + delayIncrement
     end
+    return messageDelay
+end
 
-    local totalCount = #activeAuctions + #completedAuctions
-    if targetPlayer then
-        print(string.format("|cff00ff00[GDKPT Leader]|r Synced %d auctions (%d active, %d completed) to %s.", 
-            totalCount, #activeAuctions, #completedAuctions, targetPlayer))
-    else
-        print(string.format("|cff00ff00[GDKPT Leader]|r Synced %d auctions (%d active, %d completed) to raid.", 
-            totalCount, #activeAuctions, #completedAuctions))
+
+-------------------------------------------------------------------
+-- Wrapper function to sync active and completed auctions, either
+-- to a specific player if targetPlayer is provided, or to the raid
+-------------------------------------------------------------------
+
+local function SyncAuctions(targetPlayer)
+    local channel = targetPlayer and "WHISPER" or "RAID"
+    local target = targetPlayer or nil
+    
+    local activeAuctions = {}
+    local completedAuctions = {}
+    
+
+    -- Force proper numeric order
+    local auctionIds = {}
+    for auctionId in pairs(GDKPT.RaidLeader.Core.ActiveAuctions) do
+        table.insert(auctionIds, auctionId)
+    end
+    table.sort(auctionIds)
+
+
+    
+    -- Separate active and completed auctions
+    for auctionId, auction in pairs(GDKPT.RaidLeader.Core.ActiveAuctions) do
+        if auction.hasEnded then
+            table.insert(completedAuctions, {id = auctionId, auction = auction})
+        else
+            table.insert(activeAuctions, {id = auctionId, auction = auction})
+        end
     end
 
-    GDKPT.RaidLeader.Core.GDKP_Pot = rebuiltPot
+    
 
-    -- Send pot sync after all auctions
+    local messageDelay = 0
+    local delayIncrement = 0.5
+    
+    -- Send active auctions
+    messageDelay = SendActiveAuctions(activeAuctions, channel, targetPlayer, messageDelay, delayIncrement)
+    -- Send completed auctions
+    messageDelay = SendCompletedAuctions(completedAuctions, channel, targetPlayer, messageDelay, delayIncrement)
+end
+
+
+
+-------------------------------------------------------------------
+-- Function to sync the total pot after all auctions have been sent
+-------------------------------------------------------------------
+
+local function SyncPot(targetPlayer, messageDelay)
+    local channel = targetPlayer and "WHISPER" or "RAID"
+    local target = targetPlayer or nil
+
     C_Timer.After(messageDelay + 0.5, function()
         local potMsg = string.format("SYNC_POT:%d:%d", 
             GDKPT.RaidLeader.Core.GDKP_Pot, 
@@ -252,198 +236,17 @@ local function SyncActiveAuctions(targetPlayer)
         if targetPlayer then
             SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, potMsg, channel, target)
         else
-            GDKPT.RaidLeader.MessageHandler.SafeSendAddonMessage(
-                GDKPT.RaidLeader.Core.addonPrefix, potMsg, channel)
+            SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, potMsg, channel)
         end
     end)
-
-    GDKPT.RaidLeader.UI.UpdateRosterDisplay()
-end
+end 
 
 
+-------------------------------------------------------------------
+-- Function to sync the player balance to raidmembers
+-------------------------------------------------------------------
 
-
-
---[[
-
-local function SyncActiveAuctions(targetPlayer)
-    local channel = targetPlayer and "WHISPER" or "RAID"
-    local target = targetPlayer or nil
-    
-    local activeAuctions = {}
-    local completedAuctions = {}
-    
-    --Initialize pot and clear player balances before rebuilding
-    local rebuiltPot = 0
-    if wipe then
-        wipe(GDKPT.RaidLeader.Core.PlayerBalances)
-    else
-        GDKPT.RaidLeader.Core.PlayerBalances = {}
-    end
-
-    -- Separate active and completed auctions and rebuild pot/balances
-    for auctionId, auction in pairs(GDKPT.RaidLeader.Core.ActiveAuctions) do
-        -- Separate auctions
-        if auction.hasEnded then
-            table.insert(completedAuctions, {id = auctionId, auction = auction})
-        else
-            table.insert(activeAuctions, {id = auctionId, auction = auction})
-        end
-
-        -- ADDED: Rebuild pot and player balances from ALL auctions
-        if auction.currentBid and auction.currentBid > 0 then
-            -- Add to total pot
-            rebuiltPot = rebuiltPot + auction.currentBid
-            
-            -- Add to the player's balance (i.e., their debt to the pot)
-            if auction.topBidder and auction.topBidder ~= "" then
-                local player = auction.topBidder
-                -- Ensure the player has an entry in the table
-                if not GDKPT.RaidLeader.Core.PlayerBalances[player] then
-                    GDKPT.RaidLeader.Core.PlayerBalances[player] = 0
-                end
-                -- Add this item's cost to their total balance
-                GDKPT.RaidLeader.Core.PlayerBalances[player] = GDKPT.RaidLeader.Core.PlayerBalances[player] - auction.currentBid
-            end
-        end
-    end
-
-    -- Send active auctions
-    for _, data in ipairs(activeAuctions) do
-        local auction = data.auction
-        local auctionId = data.id
-        local remainingDuration = math.max(0, auction.endTime - time())
-        local stackCount = auction.stackCount or GDKPT.RaidLeader.Utils.GetInventoryStackCount(auction.itemLink) or 1
-    
-        local msg = string.format(
-            "AUCTION_START:%d:%d:%d:%d:%d:%d:%s",
-            auctionId,
-            auction.itemID,
-            auction.startBid,
-            GDKPT.RaidLeader.Core.AuctionSettings.minIncrement,
-            remainingDuration,
-            stackCount,
-            auction.itemLink
-        )
-        
-        C_Timer.After(0.1 * auctionId, function()
-            if targetPlayer then
-                SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, channel, target)
-            else
-                GDKPT.RaidLeader.MessageHandler.SafeSendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, channel)
-            end
-            
-            -- Send current bid if present
-            if auction.currentBid > 0 and auction.topBidder ~= "" then
-                C_Timer.After(0.05, function()
-
-                    local remainingTimeForUpdate = math.max(0, auction.endTime - time())
-                    local updateMsg = string.format(
-                        "AUCTION_UPDATE:%d:%d:%s:%d:%d:%s",
-                        auctionId,
-                        auction.currentBid,
-                        auction.topBidder,
-                        remainingTimeForUpdate,
-                        auction.itemID,
-                        auction.itemLink
-                    )
-                    
-                    if targetPlayer then
-                        SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, updateMsg, channel, target)
-                    else
-                        GDKPT.RaidLeader.MessageHandler.SafeSendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, updateMsg, channel)
-                    end
-                end)
-            end
-        end)
-    end
-
-    -- Send completed auctions
-    for _, data in ipairs(completedAuctions) do
-        local auction = data.auction
-        local auctionId = data.id
-        local stackCount = auction.stackCount or 1
-        
-        C_Timer.After(0.1 * (#activeAuctions + auctionId), function()
-            -- Send start message
-            local msg = string.format(
-                "AUCTION_START:%d:%d:%d:%d:%d:%d:%s",
-                auctionId,
-                auction.itemID,
-                auction.startBid,
-                GDKPT.RaidLeader.Core.AuctionSettings.minIncrement,
-                auction.endTime,
-                stackCount,
-                auction.itemLink
-            )
-            
-            if targetPlayer then
-                SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, channel, target)
-            else
-                GDKPT.RaidLeader.MessageHandler.SafeSendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, channel)
-            end
-            
-            -- Send end message
-            C_Timer.After(0.1, function()
-                local endMsg = string.format(
-                    "AUCTION_END:%d:%d:%d:%s:%d",
-                    auctionId,
-                    auction.currentBid or 0, -- include current bid for completed auction
-                    auction.itemID,
-                    auction.topBidder or "Bulk", -- Using "Bulk" as a default seems odd, maybe use ""?
-                    auction.currentBid or 0
-                )
-                
-                if targetPlayer then
-                    SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, endMsg, channel, target)
-                else
-                    GDKPT.RaidLeader.MessageHandler.SafeSendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, endMsg, channel)
-                end
-            end)
-        end)
-    end
-
-    local totalCount = #activeAuctions + #completedAuctions
-    if targetPlayer then
-        print(string.format("|cff00ff00[GDKPT Leader]|r Synced %d auctions (%d active, %d completed) to %s.", 
-            totalCount, #activeAuctions, #completedAuctions, targetPlayer))
-    else
-        print(string.format("|cff00ff00[GDKPT Leader]|r Synced %d auctions (%d active, %d completed) to raid.", 
-            totalCount, #activeAuctions, #completedAuctions))
-    end
-
-    GDKPT.RaidLeader.Core.GDKP_Pot = rebuiltPot
-    
-
-
-
-    -- Instead, add it once at the very end of the function:
-    C_Timer.After(0.2 * (#activeAuctions + #completedAuctions + 1), function()
-        local potMsg = string.format("SYNC_POT:%d:%d", GDKPT.RaidLeader.Core.GDKP_Pot, GDKPT.Core.leaderSettings.splitCount)
-        if targetPlayer then
-            SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, potMsg, channel, target)
-        else
-            GDKPT.RaidLeader.MessageHandler.SafeSendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, potMsg, channel)
-        end
-    end)
-
-    GDKPT.RaidLeader.UI.UpdateRosterDisplay()
-
-end
-
-]]
-
-
-GDKPT.RaidLeader.SyncSettings.SyncActiveAuctions = SyncActiveAuctions
-
-
-
-
-
-
-
--- Function to sync player balances
-local function SyncPlayerBalances(targetPlayer)
+local function SyncPlayerBalances(targetPlayer,messageDelay)
     local channel = targetPlayer and "WHISPER" or "RAID"
     local target = targetPlayer or nil
     
@@ -453,20 +256,56 @@ local function SyncPlayerBalances(targetPlayer)
         table.insert(balanceData, string.format("%s:%d", playerName, balance))
     end
     
-    if #balanceData > 0 then
-        local msg = "SYNC_BALANCES:" .. table.concat(balanceData, ",")
+    C_Timer.After(messageDelay + 1, function() 
+         -- Send the balance data if there is any
+        if #balanceData > 0 then
+            local msg = "SYNC_BALANCES:" .. table.concat(balanceData, ",")
         
-        if targetPlayer then
-            SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, channel, target)
-        else
-            GDKPT.RaidLeader.MessageHandler.SafeSendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, channel)
-        end
-        
-        print(string.format("|cff00ff00[GDKPT Leader]|r Synced balances for %d players.", #balanceData))
+            if targetPlayer then
+                SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, channel, target)
+            else
+                SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, channel)
+            end
+        end    
+    end)
+
+end
+
+
+
+
+-------------------------------------------------------------------
+-- Hook up button to sync current auctions to raidmembers
+-- also syncs the pot after auctions
+-------------------------------------------------------------------
+
+
+SyncAuctionsButton:SetScript("OnClick", function()
+    SyncAuctions() --no targetPlayer, sends to raid
+    SyncPot(nil, (#GDKPT.RaidLeader.Core.ActiveAuctions * 0.5) + 0.5) --sync pot after auctions with delay
+end)
+
+
+
+
+
+
+-------------------------------------------------------------------
+-- Periodically send a message to the client addon for the member
+-- addon to enable GDKP functionalities
+-------------------------------------------------------------------
+
+
+function GDKPT.RaidLeader.Sync.StartLeaderHeartbeat()
+    if not GDKPT.RaidLeader.HeartbeatTimer then
+        GDKPT.RaidLeader.HeartbeatTimer = C_Timer.NewTicker(30, function()
+            if IsInRaid() and GDKPT.RaidLeader.Utils.GetRaidLeaderName() == UnitName("player") then
+                SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, "LEADER_HEARTBEAT:", "RAID")
+            end
+        end)
     end
 end
 
-GDKPT.RaidLeader.SyncSettings.SyncPlayerBalances = SyncPlayerBalances
 
 
 
@@ -474,7 +313,14 @@ GDKPT.RaidLeader.SyncSettings.SyncPlayerBalances = SyncPlayerBalances
 
 
 
-GDKPLeaderFrame:SetScript(
+
+-------------------------------------------------------------------
+-- Event handler to respond to sync requests from raidmembers
+-------------------------------------------------------------------
+
+
+
+GDKPT.RaidLeader.UI.GDKPLeaderFrame:SetScript(
     "OnEvent",
     function(self, event, ...)
         if event == "CHAT_MSG_ADDON" then
@@ -489,14 +335,29 @@ GDKPLeaderFrame:SetScript(
                     SyncSettings()
                 elseif action == "REQUEST_AUCTION_SYNC" then
                     print("GDKPT Leader: Received auction sync request from " .. sender)
-                    SyncActiveAuctions(sender)
-                    
+                    local totalDelay = (#GDKPT.RaidLeader.Core.ActiveAuctions * 0.5) + 0.5
+
+                    SyncAuctions(sender)
+                    SyncPot(sender, totalDelay)
+    
                     C_Timer.After(0.5, function()
-                        SyncPlayerBalances(sender)
+                        SyncPlayerBalances(sender, totalDelay + 1)
                     end)
+                    GDKPT.RaidLeader.PlayerBalance.UpdatePlayerBalance()   -- this is called everytime someone else requests a sync, might not be a good solution
                 end
             end
         end
     end
 )
 
+
+
+
+
+-------------------------------------------------------------------
+-- Expose functions
+-------------------------------------------------------------------
+
+GDKPT.RaidLeader.Sync.SyncSettings = SyncSettings
+GDKPT.RaidLeader.Sync.SyncAuctions = SyncAuctions
+GDKPT.RaidLeader.Sync.SyncPlayerBalances = SyncPlayerBalances
