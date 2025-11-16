@@ -20,20 +20,24 @@ local function HandleBid(sender, auctionId, bidAmount)
         return
     end
 
-    -- Validate bid amount
-    -- If a players' bid amount is deemed invalid (probably because another player clicked the button very shortly before them), then their bidButton is re-enabled
 
-    if bidAmount and bidAmount < auction.currentBid + GDKPT.RaidLeader.Core.AuctionSettings.minIncrement and not auction.hasEnded then
-        print(string.format(GDKPT.RaidLeader.Core.errorPrintString .. "%s did an invalid bid, their bidButton is enabled again."),sender)
-        SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix,"AUCTION_BID_REENABLE","WHISPER",sender)
-        return
-    end
 
     -- Reject bids if auction time has expired
     if time() >= auction.endTime then
         print(string.format(GDKPT.RaidLeader.Core.errorPrintString .. "Rejected late bid from %s on auction %d (time expired)", sender, auctionId))
         return
     end
+
+
+    -- Validate bid amount
+    -- If a players' bid amount is deemed invalid (probably because another player clicked the button very shortly before them), then their bidButton is re-enabled
+
+    if bidAmount and bidAmount < auction.currentBid + GDKPT.RaidLeader.Core.AuctionSettings.minIncrement and not auction.hasEnded then
+        print(string.format(GDKPT.RaidLeader.Core.errorPrintString .. "%s did an invalid bid, their bidButton is enabled again.",sender))
+        SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix,"AUCTION_BID_REENABLE","WHISPER",sender)
+        return
+    end
+
     
     -- Accept the bid
     if bidAmount and sender then
@@ -48,15 +52,13 @@ local function HandleBid(sender, auctionId, bidAmount)
         -- Always add the extra time first
         local newRemaining = currentRemaining + GDKPT.RaidLeader.Core.AuctionSettings.extraTime
 
-        -- Apply the timer cap logic
-        if currentRemaining > timerCap then
-            -- Between 31-60 seconds: cannot exceed full duration
-            newRemaining = math.min(newRemaining, auction.duration)
+        -- Cap at timer cap OR full duration, whichever is appropriate
+        if currentRemaining <= timerCap then
+            -- Already in "final stretch" - cap at timerCap
+            newRemaining = math.min(newRemaining, timerCap)
         else
-            -- At or below 30 seconds: cannot exceed 30 seconds total
-            if newRemaining > timerCap then
-                newRemaining = timerCap
-            end
+            -- Still in first half - cap at full duration
+            newRemaining = math.min(newRemaining, auction.duration)
         end
         
         auction.endTime = time() + newRemaining

@@ -11,9 +11,12 @@ local function ProcessAuctionEnd(id)
     local auction = GDKPT.RaidLeader.Core.ActiveAuctions[id]
     auction.hasEnded = true
 
+    -- If noone has bid on an auction, we now set it to Bulk
+    if auction.topBidder == "" then auction.topBidder = "Bulk" end
+
 
     -- Update GDKP pot if there was a valid bid by a player
-    if auction.topBidder ~= "" and auction.tipBidder ~= "Bulk" and auction.currentBid > 0 then
+    if auction.topBidder ~= "" and auction.topBidder ~= "Bulk" and auction.currentBid > 0 then
         GDKPT.RaidLeader.Core.GDKP_Pot = GDKPT.RaidLeader.Core.GDKP_Pot + auction.currentBid
     end
 
@@ -32,7 +35,8 @@ local function ProcessAuctionEnd(id)
             manuallyAdjusted = false,         -- only changed to true on a manual adjustment
             winningBid = auction.currentBid,  -- probably obsolete? can just use price
             bid = auction.currentBid,         -- probably obsolete? can just use price
-            itemHash = auction.itemHash,      -- for checking duplicate items, itemHash should be unique for each auctioned item cause its based on timestamp + bag + slot
+            auctionHash = auction.auctionHash,      -- for checking duplicate items, itemHash should be unique for each auctioned item cause its based on timestamp + bag + slot
+            itemInstanceHash = auction.itemInstanceHash,-- not based on timestamp hash
             traded = false,                   -- trade parameters
             fullyTraded = false,
             inTradeSlot = nil,
@@ -43,8 +47,8 @@ local function ProcessAuctionEnd(id)
     end
 
     -- Update AuctionedItems tracking if the item was won by a player (not bulk) for future reference 
-    if auction.topBidder ~= "Bulk" and auction.currentBid > 0 and auction.itemHash and GDKPT.RaidLeader.Core.AuctionedItems[auction.itemHash] then
-        local trackedAuctionItem = GDKPT.RaidLeader.Core.AuctionedItems[auction.itemHash]  -- unique item instance based on itemHash
+    if auction.auctionHash and GDKPT.RaidLeader.Core.AuctionedItems[auction.auctionHash] then
+        local trackedAuctionItem = GDKPT.RaidLeader.Core.AuctionedItems[auction.auctionHash]  -- unique item instance based on auctionHash
         trackedAuctionItem.winner = auction.topBidder
         trackedAuctionItem.winningBid = auction.currentBid
         trackedAuctionItem.hasEnded = true
@@ -65,13 +69,13 @@ local function ProcessAuctionEnd(id)
         auction.topBidder,
         auction.currentBid
     )
+
     SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, endMsg, "RAID")
 
     -- Announce auction result
-    if auction.topBidder ~= "" then
+    if auction.topBidder ~= "" and auction.topBidder ~= "Bulk" then
         SendChatMessage(string.format("[GDKPT] Auction for %s finished! Winner: %s with %d gold!",auction.itemLink,auction.topBidder,auction.currentBid),"RAID")
     else -- No bids placed, so item goes to bulk
-        auction.topBidder = "Bulk"
         SendChatMessage(string.format("[GDKPT] Auction for %s finished! No bids. Adding this item to the bulk.",auction.itemLink),"RAID")
     end
 end

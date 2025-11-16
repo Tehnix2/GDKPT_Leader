@@ -1,9 +1,9 @@
-## Title: GDKPT RaidLeader v0.33
+## Title: GDKPT RaidLeader v0.34
 ## Name: GDKPT_RaidLeader
-## Version: 0.33
+## Version: 0.34
 ## Author: Tehnix
 ## Interface: 30300
-## SavedVariables: GDKPT_RaidLeader_Core_AuctionSettings, GDKPT_RaidLeader_Core_ActiveAuctions, GDKPT_RaidLeader_Core_PotHistory, GDKPT_RaidLeader_Core_PlayerBalances, GDKPT_RaidLeader_Core_PlayerWonItems 
+## SavedVariables: GDKPT_RaidLeader_Core_AuctionSettings, GDKPT_RaidLeader_Core_ActiveAuctions, GDKPT_RaidLeader_Core_AuctionedItems, GDKPT_RaidLeader_Core_PlayerBalances, GDKPT_RaidLeader_Core_PlayerWonItems, GDKPT_RaidLeader_Core_SavedSnapshots 
 GDKPT.RaidLeader.Loader.lua
 GDKPT.RaidLeader.Core.lua
 GDKPT.RaidLeader.Utils.lua
@@ -25,3 +25,4 @@ GDKPT.RaidLeader.PotSplitTrading.lua
 GDKPT.RaidLeader.Export.lua
 GDKPT.RaidLeader.Reset.lua
 GDKPT.RaidLeader.Reload.lua
+GDKPT.RaidLeader.RaidSnapshots.lua

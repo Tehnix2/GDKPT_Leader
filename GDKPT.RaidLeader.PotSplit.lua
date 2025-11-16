@@ -56,7 +56,7 @@ function GDKPT.RaidLeader.PotSplit.EnoughGoldCollected()
     end
 
     local playerGold = GetMoney() / 10000 -- Convert copper to gold
-    local numRaid = GetNumRaidMembers()   -- Get number of raid members
+    local numRaid = GDKPT.RaidLeader.Utils.GetCurrentSplitCount()   -- Get number of raid members
     
     -- Calculate per-player share and total needed
     local totalPotCopper = totalPot * 10000
@@ -97,8 +97,8 @@ function GDKPT.RaidLeader.PotSplit.DistributePot()
     -- Get total pot
     local totalPot = GDKPT.RaidLeader.Core.GDKP_Pot -- totalPot is already validated in EnoughGoldCollected
 
-    -- Every raidmember (online+offline) gets a share
-    local numSplits = GetNumRaidMembers()
+    -- Every raidmember (online+offline) gets a share. Use the raid count at the point when the leader clicks the button
+    local numSplits = GDKPT.RaidLeader.Core.ExportSplitCount -- GDKPT.RaidLeader.Utils.GetCurrentSplitCount()
     
     if numSplits <= 0 then
         print(GDKPT.RaidLeader.Core.errorPrintString .. "There are no raid members!")
@@ -114,9 +114,21 @@ function GDKPT.RaidLeader.PotSplit.DistributePot()
     -- Add the player share to each player's balance and count the amount of players distributed to
     local distributionCount = 0
 
-    for playerName, balance in pairs(GDKPT.RaidLeader.Core.PlayerBalances) do
-        GDKPT.RaidLeader.Core.PlayerBalances[playerName] = balance + playerShareGold
-        distributionCount = distributionCount + 1        
+    -- Get all raid member names
+    local raidMembers = {}
+    for i = 1, GetNumRaidMembers() do
+        local name = GetRaidRosterInfo(i)
+        if name then
+            raidMembers[name] = true
+        end
+    end
+
+
+    -- Distribute to ALL raid members (not just those with existing balances)
+    for playerName, _ in pairs(raidMembers) do
+        local currentBalance = GDKPT.RaidLeader.Core.PlayerBalances[playerName] or 0
+        GDKPT.RaidLeader.Core.PlayerBalances[playerName] = currentBalance + playerShareGold
+        distributionCount = distributionCount + 1
     end
 
     -- Update the shown player balances in the LeaderFrame
@@ -150,6 +162,9 @@ StaticPopupDialogs["GDKPT_CONFIRM_READY"] = {
     button2 = "Cancel",
     OnAccept = function()
         GDKPT.RaidLeader.PotSplit.StartPotSplitPhase = true -- Enable the Pot Split Phase
+
+        local currentRaidSize = IsInRaid() and GetNumRaidMembers() or 1
+        GDKPT.RaidLeader.Core.ExportSplitCount = currentRaidSize
         -- Update button states
         PotSplitButton:Show()
         PotSplitButton:Enable()
@@ -170,6 +185,17 @@ StaticPopupDialogs["GDKPT_CONFIRM_FINALIZE"] = {
     button2 = "Cancel",
     OnAccept = function()
         GDKPT.RaidLeader.PotSplit.DistributePot()
+
+        -- Swap trade event handlers:
+        -- Turn off item trading frame events
+        if GDKPT.RaidLeader.ItemTrading and GDKPT.RaidLeader.ItemTrading.UnregisterEvents then
+            GDKPT.RaidLeader.ItemTrading.UnregisterEvents()
+        end
+
+        -- Turn on pot split trade frame events
+        if GDKPT.RaidLeader.PotSplitTrading and GDKPT.RaidLeader.PotSplitTrading.RegisterEvents then
+            GDKPT.RaidLeader.PotSplitTrading.RegisterEvents()
+        end
     end,
     timeout = 0,
     whileDead = true,

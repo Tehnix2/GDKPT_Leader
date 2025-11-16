@@ -24,6 +24,14 @@ function GDKPT.RaidLeader.Utils.trim(s)
 end
 
 
+-------------------------------------------------------------------
+-- Get current split count based on raid size
+-------------------------------------------------------------------
+
+function GDKPT.RaidLeader.Utils.GetCurrentSplitCount()
+    return IsInRaid() and GetNumRaidMembers() or 1
+end
+
 
 -------------------------------------------------------------------
 -- Function checks if player is masterlooter 
@@ -124,30 +132,46 @@ end
 
 
 -------------------------------------------------------------------
--- Function to Create a unique hash for a specific item instance
--- based on bagID, slotID, itemLink, timestamp, texture, count
+-- Function to create two itemHash, one based on time so its 
+-- completely unique, and one without the time for lookups
 -------------------------------------------------------------------
 
 
--- Uses item properties that make it unique even among duplicates
 function GDKPT.RaidLeader.Utils.CreateItemHash(bagID, slotID, itemLink)
     local texture, count, _ = GetContainerItemInfo(bagID, slotID)
-    
-    -- Parse itemLink to get all unique identifiers
-    local itemString = itemLink:match("item:([%-?%d:]+)")
-    
-    -- Create hash from: itemString + current timestamp + bag + slot + texture
-    -- This ensures each auction gets a unique hash even for identical items
-    local hash = string.format("%s_%d_%d_%d_%s_%d", 
-        itemString or "", 
-        bagID, 
-        slotID, 
-        time(), 
-        tostring(texture),
-        count or 1
+    local itemString = itemLink:match("item:([%-?%d:]+)") or ""
+
+    -- This one changes each auction, ensures uniqueness per event
+    local auctionHash = string.format("%s_%d_%d_%d_%s_%d",
+        itemString, bagID, slotID, time(), tostring(texture), count or 1
     )
-    
-    return hash
+
+    -- This one is reproducible for the same item in bags
+    local itemInstanceHash = string.format("%s_%d_%d_%s_%d",
+        itemString, bagID, slotID, tostring(texture), count or 1
+    )
+
+    return auctionHash, itemInstanceHash
+end
+
+
+-------------------------------------------------------------------
+-- Function creates the itemInstanceHash of the current mouseovered
+-- item for tooltip creation and then looks up the stored values for
+-- this specific item in the AuctionedItems table.
+-- Used by TooltipExtension code
+-------------------------------------------------------------------
+
+function GDKPT.RaidLeader.Utils.FindMatchingAuction(bagID, slotID, itemLink)
+    local _, itemInstanceHash = GDKPT.RaidLeader.Utils.CreateItemHash(bagID, slotID, itemLink)
+
+    for _, auctionData in pairs(GDKPT.RaidLeader.Core.AuctionedItems) do
+        if auctionData.itemInstanceHash == itemInstanceHash then
+            return auctionData
+        end
+    end
+
+    return nil
 end
 
 
@@ -219,22 +243,7 @@ end
 
 
 
--------------------------------------------------------------------
--- Function to find won item by its hash
--- Could be used by AutoPlaceItemsInTrade but its currently unused?
--------------------------------------------------------------------
 
-
-local function FindWonItemByHash(wonItems, itemHash)
-    if not wonItems or not itemHash then return nil end
-    
-    for _, item in ipairs(wonItems) do
-        if item.itemHash == itemHash then
-            return item
-        end
-    end
-    return nil
-end
 
 
 
@@ -271,7 +280,6 @@ end
 -------------------------------------------------------------------
 
 
-
 function GDKPT.RaidLeader.Utils.AutoPlaceItemsInTrade(partner)
     local wonItems = GDKPT.RaidLeader.Core.PlayerWonItems[partner]
     if not wonItems then
@@ -286,81 +294,43 @@ function GDKPT.RaidLeader.Utils.AutoPlaceItemsInTrade(partner)
         if #itemsToPlace >= maxSlots then break end
 
         local wonItem = wonItems[i]
-        if not wonItem.itemID or not wonItem.stackCount then
-        else
+        if wonItem.itemID and wonItem.stackCount then
             wonItem.remainingQuantity = wonItem.remainingQuantity or wonItem.stackCount 
             
             if not wonItem.fullyTraded and not wonItem.manuallyAdjusted and wonItem.remainingQuantity > 0 then
-                local itemID = wonItem.itemID
-                local foundTradeable = false
+                local foundBag, foundSlot = GDKPT.RaidLeader.TradeHelper.FindItemInBagsByHash(wonItem)
                 
-                -- Try to find by hash first if available
-                if wonItem.itemHash then
-                    for bagID = 0, 4 do
-                        for slotID = 1, GetContainerNumSlots(bagID) do
-                            if foundTradeable then break end
-                            
-                            local itemLink = GetContainerItemLink(bagID, slotID)
-                            if itemLink then
-                                local bagItemID = tonumber(itemLink:match("item:(%d+)"))
-                                if bagItemID == itemID then
-                                    -- Check if this matches the specific hash
-                                    local texture, count = GetContainerItemInfo(bagID, slotID)
-                                    local itemString = itemLink:match("item:([%-?%d:]+)")
-                                    
-                                    -- Check itemString match AND quantity match
-                                    if wonItem.itemHash:find(itemString) and 
-                                       wonItem.itemHash:find(tostring(texture)) and
-                                       count >= wonItem.remainingQuantity and  -- Must have at least the remaining quantity
-                                       IsItemTradeable(bagID, slotID) then
-                        
-                                        local _, stackSize = GetContainerItemInfo(bagID, slotID)
-                                        stackSize = math.min(stackSize or 1, wonItem.remainingQuantity) -- Take only what's needed
-
-                                        table.insert(itemsToPlace, {
-                                            wonItem = wonItem,
-                                            stackSize = stackSize,
-                                            itemID = itemID,
-                                            itemLink = itemLink,
-                                            bagID = bagID,
-                                            slotID = slotID
-                                        })
-                                        foundTradeable = true
-                                        break
-                                    end
-                                end
+                if foundBag and foundSlot then
+                    -- Verify the item is tradeable
+                    local scanTooltip = CreateFrame("GameTooltip", "GDKPTScanTooltip_AutoPlace", nil, "GameTooltipTemplate")
+                    scanTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
+                    scanTooltip:SetBagItem(foundBag, foundSlot)
+                    
+                    local isTradeable = true
+                    for i = 1, scanTooltip:NumLines() do
+                        local line = _G["GDKPTScanTooltip_AutoPlaceTextLeft" .. i]
+                        if line then
+                            local text = line:GetText()
+                            if text and (text:find("Soulbound") or text:find("Binds when picked up") or text:find("Quest Item")) then
+                                isTradeable = false
+                                break
                             end
                         end
-                        if foundTradeable then break end
                     end
-                end
-                
-                -- Fallback: Find by itemID only
-                if not foundTradeable then
-                    for bagID = 0, 4 do
-                        for slotID = 1, GetContainerNumSlots(bagID) do
-                            if foundTradeable then break end
-                            
-                            local itemLink = GetContainerItemLink(bagID, slotID)
-                            if itemLink and tonumber(itemLink:match("item:(%d+)")) == itemID then
-                                if IsItemTradeable(bagID, slotID) then
-                                    local _, stackSize = GetContainerItemInfo(bagID, slotID)
-                                    stackSize = stackSize or 1
+                    scanTooltip:Hide()
+                    
+                    if isTradeable then
+                        local _, stackSize = GetContainerItemInfo(foundBag, foundSlot)
+                        stackSize = math.min(stackSize or 1, wonItem.remainingQuantity)
 
-                                    table.insert(itemsToPlace, {
-                                        wonItem = wonItem,
-                                        stackSize = stackSize,
-                                        itemID = itemID,
-                                        itemLink = itemLink,
-                                        bagID = bagID,
-                                        slotID = slotID
-                                    })
-                                    foundTradeable = true
-                                    break
-                                end
-                            end
-                        end
-                        if foundTradeable then break end
+                        table.insert(itemsToPlace, {
+                            wonItem = wonItem,
+                            stackSize = stackSize,
+                            itemID = wonItem.itemID,
+                            itemLink = wonItem.itemLink,
+                            bagID = foundBag,
+                            slotID = foundSlot
+                        })
                     end
                 end
             end
@@ -392,16 +362,44 @@ function GDKPT.RaidLeader.Utils.AutoPlaceItemsInTrade(partner)
             itemID = itemData.itemID,
             itemLink = itemData.itemLink,
             placementOrder = tradeSlot,
-            itemHash = itemData.wonItem.itemHash  -- Track hash
+            auctionHash = itemData.wonItem.auctionHash,
+            itemInstanceHash = itemData.wonItem.itemInstanceHash
         })
 
+        print(string.format(GDKPT.RaidLeader.Core.addonPrintString .. "Placed %s in trade slot %d (Auction #%d)", 
+            itemData.itemLink, tradeSlot, itemData.wonItem.auctionId))
+        
         if index < #itemsToPlace then
             C_Timer.After(PLACEMENT_DELAY, function()
                 PlaceNextItem(index + 1)
+            end)
+        else
+            -- Refresh the helper frame after all items placed
+            C_Timer.After(0.1, function()
+                if GDKPT.RaidLeader.TradeHelper and GDKPT.RaidLeader.TradeHelper.Update then
+                    GDKPT.RaidLeader.TradeHelper.Update()
+                end
             end)
         end
     end
 
     PlaceNextItem(1)
     return #itemsToPlace
+end
+
+
+
+
+-------------------------------------------------------------------
+-- Find next empty trade slot
+-------------------------------------------------------------------
+
+function GDKPT.RaidLeader.Utils.GetNextEmptyTradeSlot()
+    for i = 1, 6 do
+        local itemLink = GetTradePlayerItemLink(i)
+        if not itemLink then
+            return i
+        end
+    end
+    return nil -- All slots full
 end

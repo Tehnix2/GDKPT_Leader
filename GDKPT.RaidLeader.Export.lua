@@ -179,13 +179,23 @@ CopyAllButton:SetScript("OnClick", function()
 end)
 
 -------------------------------------------------------------------
--- Export Generation Functions
+-- Export Generation Functions (use either snapshot or live data)
 -------------------------------------------------------------------
 
 local function GenerateCSVExport(raidName)
     local output = {}
-    local totalPot = GDKPT.RaidLeader.Core.GDKP_Pot
-    local splitCount = GDKPT.RaidLeader.Core.AuctionSettings.splitCount
+
+    -- Choose snapshot OR current data
+    local dataSource = GDKPT.RaidLeader.Export.LoadedSnapshot or {
+        pot = GDKPT.RaidLeader.Core.GDKP_Pot,
+        splitCount = GDKPT.RaidLeader.Core.ExportSplitCount,
+        activeAuctions = GDKPT.RaidLeader.Core.ActiveAuctions,
+        playerBalances = GDKPT.RaidLeader.Core.PlayerBalances,
+    }
+
+    -- Use dataSource instead of Core.*
+    local totalPot = dataSource.pot or 0
+    local splitCount = dataSource.splitCount or 1
     local totalCut = math.floor(totalPot / splitCount)
     local currentDate = date("%Y-%m-%d %H:%M:%S")
     
@@ -202,7 +212,7 @@ local function GenerateCSVExport(raidName)
     table.insert(output, "Auction ID,Item Name,Winner,Final Bid,Status")
     
     local auctions = {}
-    for id, auction in pairs(GDKPT.RaidLeader.Core.ActiveAuctions) do
+    for id, auction in pairs(dataSource.activeAuctions) do
         table.insert(auctions, {id = id, auction = auction})
     end
     
@@ -231,7 +241,7 @@ local function GenerateCSVExport(raidName)
     table.insert(output, "Player Name,Balance,Status")
     
     local balances = {}
-    for name, balance in pairs(GDKPT.RaidLeader.Core.PlayerBalances) do
+    for name, balance in pairs(dataSource.playerBalances) do
         table.insert(balances, {name = name, balance = balance})
     end
     
@@ -245,15 +255,26 @@ local function GenerateCSVExport(raidName)
     return table.concat(output, "\n")
 end
 
+
+
 local function GeneratePlainTextExport(raidName)
     local output = {}
-    local totalPot = GDKPT.RaidLeader.Core.GDKP_Pot
-    local splitCount = GDKPT.RaidLeader.Core.AuctionSettings.splitCount
+
+    -- Snapshot OR live data
+    local dataSource = GDKPT.RaidLeader.Export.LoadedSnapshot or {
+        pot = GDKPT.RaidLeader.Core.GDKP_Pot,
+        splitCount = GDKPT.RaidLeader.Core.ExportSplitCount,
+        activeAuctions = GDKPT.RaidLeader.Core.ActiveAuctions,
+        playerBalances = GDKPT.RaidLeader.Core.PlayerBalances,
+    }
+
+    local totalPot = dataSource.pot or 0
+    local splitCount = dataSource.splitCount or 1
     local totalCut = math.floor(totalPot / splitCount)
     local currentDate = date("%Y-%m-%d %H:%M:%S")
-    
+
     table.insert(output, "=====================================")
-    table.insert(output, "       GDKPT RAID EXPORT DATA       ")
+    table.insert(output, "       GDKPT RAID EXPORT DATA        ")
     table.insert(output, "=====================================")
     table.insert(output, "")
     table.insert(output, "Raid Name: " .. raidName)
@@ -265,103 +286,117 @@ local function GeneratePlainTextExport(raidName)
     table.insert(output, string.format("Cut Per Player: %s", GDKPT.Utils.FormatMoney(totalCut * 10000)))
     table.insert(output, "")
     table.insert(output, "=====================================")
-    table.insert(output, "            AUCTION RESULTS            ")
+    table.insert(output, "            AUCTION RESULTS          ")
     table.insert(output, "=====================================")
     table.insert(output, "")
-    
+
     local auctions = {}
-    for id, auction in pairs(GDKPT.RaidLeader.Core.ActiveAuctions) do
+    for id, auction in pairs(dataSource.activeAuctions) do
         if auction.topBidder and auction.topBidder ~= "" and auction.topBidder ~= "Bulk" then
             table.insert(auctions, {id = id, auction = auction})
         end
     end
-    
+
     table.sort(auctions, function(a, b) return a.id < b.id end)
-    
+
     for _, data in ipairs(auctions) do
         local id = data.id
         local auction = data.auction
+
         local itemName = GetItemInfo(auction.itemLink) or "Unknown Item"
         local bid = auction.currentBid or 0
-        
+
         table.insert(output, string.format("[%d] %s", id, itemName))
         table.insert(output, string.format("    Winner: %s", auction.topBidder))
         table.insert(output, string.format("    Bid: %s", GDKPT.Utils.FormatMoney(bid * 10000)))
         table.insert(output, string.format("    Status: %s", auction.hasEnded and "Completed" or "Active"))
         table.insert(output, "")
     end
-    
+
     table.insert(output, "=====================================")
     table.insert(output, "           PLAYER BALANCES           ")
     table.insert(output, "=====================================")
     table.insert(output, "")
-    
+
     local balances = {}
-    for name, balance in pairs(GDKPT.RaidLeader.Core.PlayerBalances) do
+    for name, balance in pairs(dataSource.playerBalances) do
         table.insert(balances, {name = name, balance = balance})
     end
-    
+
     table.sort(balances, function(a, b) return a.balance < b.balance end)
-    
+
     for _, data in ipairs(balances) do
-        local status = data.balance < 0 and "OWES" or (data.balance > 0 and "OWED" or "SETTLED")
+        local status = data.balance < 0 and "OWES"
+                    or (data.balance > 0 and "OWED" or "SETTLED")
+
         local formatted = GDKPT.Utils.FormatMoney(math.abs(data.balance) * 10000)
-        
+
         table.insert(output, string.format("%-20s %10s (%s)", data.name, formatted, status))
     end
-    
+
     table.insert(output, "")
     table.insert(output, "=====================================")
-    table.insert(output, "       Export generated by GDKPT       ")
+    table.insert(output, "       Export generated by GDKPT      ")
     table.insert(output, "=====================================")
-    
+
     return table.concat(output, "\n")
 end
 
+
 local function GenerateJSONExport(raidName)
-    local totalPot = GDKPT.RaidLeader.Core.GDKP_Pot
-    local splitCount = GDKPT.RaidLeader.Core.AuctionSettings.splitCount
+    -- Snapshot OR live data
+    local dataSource = GDKPT.RaidLeader.Export.LoadedSnapshot or {
+        pot = GDKPT.RaidLeader.Core.GDKP_Pot,
+        splitCount = GDKPT.RaidLeader.Core.ExportSplitCount,
+        activeAuctions = GDKPT.RaidLeader.Core.ActiveAuctions,
+        playerBalances = GDKPT.RaidLeader.Core.PlayerBalances,
+    }
+
+    local totalPot = dataSource.pot or 0
+    local splitCount = dataSource.splitCount or 1
     local totalCut = math.floor(totalPot / splitCount)
-    
+
     local function escapeJSON(str)
         if not str then return '""' end
         str = tostring(str)
-        str = str:gsub('\\', '\\\\')
-        str = str:gsub('"', '\\"')
-        str = str:gsub('\n', '\\n')
-        str = str:gsub('\r', '\\r')
-        str = str:gsub('\t', '\\t')
-        return '"' .. str .. '"'
+        return '"' .. str
+            :gsub("\\", "\\\\")
+            :gsub('"', '\\"')
+            :gsub("\n", "\\n")
+            :gsub("\r", "\\r")
+            :gsub("\t", "\\t")
+        .. '"'
     end
-    
+
     local output = {}
     table.insert(output, "{")
     table.insert(output, '  "raidName": ' .. escapeJSON(raidName) .. ',')
     table.insert(output, '  "exportDate": ' .. escapeJSON(date("%Y-%m-%d %H:%M:%S")) .. ',')
+
     table.insert(output, '  "potSummary": {')
     table.insert(output, '    "totalPot": ' .. totalPot .. ',')
     table.insert(output, '    "splitCount": ' .. splitCount .. ',')
     table.insert(output, '    "cutPerPlayer": ' .. totalCut)
     table.insert(output, '  },')
+
     table.insert(output, '  "auctions": [')
-    
+
     local auctions = {}
-    for id, auction in pairs(GDKPT.RaidLeader.Core.ActiveAuctions) do
+    for id, auction in pairs(dataSource.activeAuctions) do
         if auction.topBidder and auction.topBidder ~= "" and auction.topBidder ~= "Bulk" then
             table.insert(auctions, {id = id, auction = auction})
         end
     end
-    
+
     table.sort(auctions, function(a, b) return a.id < b.id end)
-    
+
     for i, data in ipairs(auctions) do
-        local id = data.id
         local auction = data.auction
         local itemName = GetItemInfo(auction.itemLink) or "Unknown Item"
         local bid = auction.currentBid or 0
-        
+
         table.insert(output, '    {')
-        table.insert(output, '      "id": ' .. id .. ',')
+        table.insert(output, '      "id": ' .. data.id .. ',')
         table.insert(output, '      "itemName": ' .. escapeJSON(itemName) .. ',')
         table.insert(output, '      "itemLink": ' .. escapeJSON(auction.itemLink) .. ',')
         table.insert(output, '      "winner": ' .. escapeJSON(auction.topBidder) .. ',')
@@ -369,32 +404,35 @@ local function GenerateJSONExport(raidName)
         table.insert(output, '      "status": ' .. escapeJSON(auction.hasEnded and "completed" or "active"))
         table.insert(output, '    }' .. (i < #auctions and ',' or ''))
     end
-    
+
     table.insert(output, '  ],')
     table.insert(output, '  "playerBalances": [')
-    
+
     local balances = {}
-    for name, balance in pairs(GDKPT.RaidLeader.Core.PlayerBalances) do
+    for name, balance in pairs(dataSource.playerBalances) do
         table.insert(balances, {name = name, balance = balance})
     end
-    
+
     table.sort(balances, function(a, b) return a.name < b.name end)
-    
+
     for i, data in ipairs(balances) do
-        local status = data.balance < 0 and "owes" or (data.balance > 0 and "owed" or "settled")
-        
+        local status = data.balance < 0 and "owes"
+                    or (data.balance > 0 and "owed" or "settled")
+
         table.insert(output, '    {')
         table.insert(output, '      "player": ' .. escapeJSON(data.name) .. ',')
         table.insert(output, '      "balance": ' .. data.balance .. ',')
         table.insert(output, '      "status": ' .. escapeJSON(status))
         table.insert(output, '    }' .. (i < #balances and ',' or ''))
     end
-    
+
     table.insert(output, '  ]')
     table.insert(output, '}')
-    
+
     return table.concat(output, "\n")
 end
+
+
 
 
 -------------------------------------------------------------------
@@ -647,11 +685,77 @@ end
 GDKPT.RaidLeader.Export.PopulateScreenshotContent = PopulateScreenshotContent 
 
 
+local function GenerateScreenshotExport(raidName)
+    -- Use snapshot or live data
+    local dataSource = GDKPT.RaidLeader.Export.LoadedSnapshot or {
+        pot = GDKPT.RaidLeader.Core.GDKP_Pot,
+        splitCount = GDKPT.RaidLeader.Core.ExportSplitCount,
+        activeAuctions = GDKPT.RaidLeader.Core.ActiveAuctions,
+        playerBalances = GDKPT.RaidLeader.Core.PlayerBalances,
+    }
 
+    local totalPot = dataSource.pot or 0
+    local splitCount = dataSource.splitCount or 1
+    local totalCut = math.floor(totalPot / splitCount)
+
+    local summaryData = {
+        totalPot = totalPot,
+        splitCount = splitCount,
+        totalCut = totalCut
+    }
+
+    local allAuctions = {}
+    for id, auction in pairs(dataSource.activeAuctions) do
+        if auction.topBidder then 
+            table.insert(allAuctions, {id = id, auction = auction})
+        end
+    end
+
+    table.sort(allAuctions, function(a, b) return a.id < b.id end)
+
+    -- Create screenshot frames
+    local ssFrame1 = CreateAndGetScreenshotFrame("GDKPT_ScreenshotFrame1", "|cffFFC125GDKPT Screenshot 1|r", "CENTER", -260, 0)
+    ssFrame1.InitialData.raidName = raidName
+    ssFrame1.InitialData.summaryData = summaryData
+    ssFrame1.InitialData.allAuctions = allAuctions
+
+    local ssFrame2 = CreateAndGetScreenshotFrame("GDKPT_ScreenshotFrame2", "|cffFFC125GDKPT Screenshot 2|r", "CENTER", 260, 0)
+    ssFrame2.InitialData.raidName = raidName
+    ssFrame2.InitialData.summaryData = summaryData
+    ssFrame2.InitialData.allAuctions = allAuctions
+
+    -- Populate content for both frames using current rows
+    GDKPT.RaidLeader.Export.PopulateScreenshotContent(
+        ssFrame1.scrollContent, 
+        raidName, 
+        summaryData, 
+        allAuctions,
+        tonumber(ssFrame1.StartBox:GetText()), 
+        tonumber(ssFrame1.EndBox:GetText())
+    )
+
+    GDKPT.RaidLeader.Export.PopulateScreenshotContent(
+        ssFrame2.scrollContent, 
+        raidName, 
+        summaryData, 
+        allAuctions,
+        tonumber(ssFrame2.StartBox:GetText()), 
+        tonumber(ssFrame2.EndBox:GetText())
+    )
+
+    ssFrame1:Show()
+    ssFrame2:Show()
+
+    return "Two screenshot frames are visible. Adjust the 'Rows' fields and click 'Update' to change the content shown."
+end
+
+
+
+--[[
 
 local function GenerateScreenshotExport(raidName)
     local totalPot = GDKPT.RaidLeader.Core.GDKP_Pot
-    local splitCount = GDKPT.RaidLeader.Core.AuctionSettings.splitCount
+    local splitCount = GDKPT.RaidLeader.Core.ExportSplitCount
     local totalCut = math.floor(totalPot / splitCount)
     
     local summaryData = {
@@ -703,7 +807,7 @@ local function GenerateScreenshotExport(raidName)
     return "Two screenshot frames are visible. Adjust the 'Rows' fields and click 'Update' to change the content shown."
 end
 
-
+]]
 
 
 

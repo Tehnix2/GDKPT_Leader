@@ -9,6 +9,7 @@ GDKPT.RaidLeader.PotSplitTrading.CurrentPotSplitTrade = {
     partner = nil,              -- Trade partner name
     partnerBalance = 0,         -- Partner's balance at trade start, should be positive as this is a PotSplit trade
     leaderGold = 0,             -- Gold offered by leader in trade
+    partnerGold = 0             -- in case of accidents so we can track the delta
 }
 
 
@@ -35,6 +36,7 @@ local function OnTradeOpenedInPotSplitPhase()
         partner = partnerName,
         partnerBalance = balance,
         leaderGold = 0,
+        partnerGold = 0
     }
 
     -- If balance is negative then the player should have already received their cut
@@ -64,7 +66,9 @@ end
 
 local function OnMoneyChangedInPotSplitPhase()
     local goldFromSelf = GetPlayerTradeMoney() / 10000
+    local goldFromPartner = GetTargetTradeMoney() / 10000
     GDKPT.RaidLeader.PotSplitTrading.CurrentPotSplitTrade.leaderGold = goldFromSelf
+    GDKPT.RaidLeader.PotSplitTrading.CurrentPotSplitTrade.partnerGold = goldFromPartner
 end
 
 
@@ -97,6 +101,7 @@ local function OnTradeClosedInPotSplitPhase()
             partner = nil,
             partnerBalance = 0,
             leaderGold = 0,
+            partnerGold = 0
         }
     end)
 end
@@ -115,19 +120,23 @@ local function OnTradeCompletedInPotSplitPhase()
     -- Use stored values from the trade session
     local partner = GDKPT.RaidLeader.PotSplitTrading.CurrentPotSplitTrade.partner
     local goldGiven = GDKPT.RaidLeader.PotSplitTrading.CurrentPotSplitTrade.leaderGold
+    local goldReceived = GDKPT.RaidLeader.PotSplitTrading.CurrentPotSplitTrade.partnerGold
     
     if not partner or not goldGiven then
         print(GDKPT.RaidLeader.Core.errorPrintString .. "No stored pot split trade data!")
         return
     end
 
-    if goldGiven > 0 then
+    local moneyChange = goldGiven - goldReceived        -- Leader gives gold during pot split phase
+
+
+    if moneyChange ~= 0 then
         local currentBalance = GDKPT.RaidLeader.Core.PlayerBalances[partner] or 0
-        local newBalance = currentBalance - goldGiven
+        local newBalance = currentBalance - moneyChange
         
         GDKPT.RaidLeader.Core.PlayerBalances[partner] = newBalance
         
-        SendChatMessage(string.format("[GDKPT]: %s has received their cut (%d gold)!", 
+        SendChatMessage(string.format("[GDKPT]: %s received their cut (%d gold)!", 
         partner, goldGiven), "RAID")
     end
     -- Update the player balances inside the LeaderFrame
@@ -140,16 +149,36 @@ end
 
 -------------------------------------------------------------------
 -- potSplitTradeFrame to react to PotSplit trade events
+-- On reloads we unregister these and only enable the events on pot split
 -------------------------------------------------------------------
 
 local potSplitTradeFrame = CreateFrame("Frame")
-potSplitTradeFrame:RegisterEvent("TRADE_SHOW")
-potSplitTradeFrame:RegisterEvent("TRADE_CLOSED")
-potSplitTradeFrame:RegisterEvent("TRADE_MONEY_CHANGED")
-potSplitTradeFrame:RegisterEvent("TRADE_PLAYER_ITEM_CHANGED")
-potSplitTradeFrame:RegisterEvent("TRADE_ACCEPT_UPDATE")
-potSplitTradeFrame:RegisterEvent("UI_INFO_MESSAGE")
-potSplitTradeFrame:RegisterEvent("PARTY_LOOT_METHOD_CHANGED")
+
+local function RegisterPotSplitTradeEvents()
+    if not potSplitTradeFrame.isRegistered then
+        potSplitTradeFrame:RegisterEvent("TRADE_SHOW")
+        potSplitTradeFrame:RegisterEvent("TRADE_CLOSED")
+        potSplitTradeFrame:RegisterEvent("TRADE_MONEY_CHANGED")
+        potSplitTradeFrame:RegisterEvent("TRADE_PLAYER_ITEM_CHANGED")
+        potSplitTradeFrame:RegisterEvent("TRADE_ACCEPT_UPDATE")
+        potSplitTradeFrame:RegisterEvent("UI_INFO_MESSAGE")
+        potSplitTradeFrame:RegisterEvent("PARTY_LOOT_METHOD_CHANGED")
+        potSplitTradeFrame.isRegistered = true
+    end
+end
+
+local function UnregisterPotSplitTradeEvents()
+    if potSplitTradeFrame.isRegistered then
+        potSplitTradeFrame:UnregisterEvent("TRADE_SHOW")
+        potSplitTradeFrame:UnregisterEvent("TRADE_CLOSED")
+        potSplitTradeFrame:UnregisterEvent("TRADE_MONEY_CHANGED")
+        potSplitTradeFrame:UnregisterEvent("TRADE_PLAYER_ITEM_CHANGED")
+        potSplitTradeFrame:UnregisterEvent("TRADE_ACCEPT_UPDATE")
+        potSplitTradeFrame:UnregisterEvent("UI_INFO_MESSAGE")
+        potSplitTradeFrame:UnregisterEvent("PARTY_LOOT_METHOD_CHANGED")
+        potSplitTradeFrame.isRegistered = false
+    end
+end
 
 
 
@@ -220,9 +249,15 @@ end)
 
 
 
+-------------------------------------------------------------------
+-- Expose Register and Unregister functions so these can be called
+-- from the PotSplit file
+-------------------------------------------------------------------
 
 
 
+GDKPT.RaidLeader.PotSplitTrading.RegisterEvents = RegisterPotSplitTradeEvents
+GDKPT.RaidLeader.PotSplitTrading.UnregisterEvents = UnregisterPotSplitTradeEvents
 
 
 

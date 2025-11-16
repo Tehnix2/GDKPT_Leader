@@ -20,6 +20,8 @@ SyncSettingsButton:SetHighlightFontObject("GameFontHighlightLarge")
 
 
 local function SyncSettings()
+
+    local currentSplitCount = GDKPT.RaidLeader.Utils.GetCurrentSplitCount()
     local data =
         string.format(
         "%d,%d,%d,%d,%d",
@@ -27,7 +29,7 @@ local function SyncSettings()
         GDKPT.RaidLeader.Core.AuctionSettings.extraTime,
         GDKPT.RaidLeader.Core.AuctionSettings.startBid,
         GDKPT.RaidLeader.Core.AuctionSettings.minIncrement,
-        GetNumRaidMembers()  -- should be removed in fute versions
+        currentSplitCount
     )
 
     if IsInRaid() then
@@ -228,11 +230,12 @@ end
 local function SyncPot(targetPlayer, messageDelay)
     local channel = targetPlayer and "WHISPER" or "RAID"
     local target = targetPlayer or nil
+    local currentSplitCount = GDKPT.RaidLeader.Utils.GetCurrentSplitCount()
 
     C_Timer.After(messageDelay + 0.5, function()
         local potMsg = string.format("SYNC_POT:%d:%d", 
             GDKPT.RaidLeader.Core.GDKP_Pot, 
-            GDKPT.Core.leaderSettings.splitCount)
+            currentSplitCount)
         if targetPlayer then
             SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, potMsg, channel, target)
         else
@@ -318,8 +321,6 @@ end
 -- Event handler to respond to sync requests from raidmembers
 -------------------------------------------------------------------
 
-
-
 GDKPT.RaidLeader.UI.GDKPLeaderFrame:SetScript(
     "OnEvent",
     function(self, event, ...)
@@ -331,19 +332,23 @@ GDKPT.RaidLeader.UI.GDKPLeaderFrame:SetScript(
                 action = GDKPT.RaidLeader.Utils.trim(action)
 
                 if action == "REQUEST_SETTINGS_SYNC" then
-                    print("GDKPT Leader: Received setting sync request from " .. sender .. ". Syncing settings.")
                     SyncSettings()
+                    
                 elseif action == "REQUEST_AUCTION_SYNC" then
-                    print("GDKPT Leader: Received auction sync request from " .. sender)
                     local totalDelay = (#GDKPT.RaidLeader.Core.ActiveAuctions * 0.5) + 0.5
 
-                    SyncAuctions(sender)
-                    SyncPot(sender, totalDelay)
-    
-                    C_Timer.After(0.5, function()
-                        SyncPlayerBalances(sender, totalDelay + 1)
+                    -- Send settings first so buttons can be re-enabled properly
+                    SyncSettings()
+                    
+                    -- Small delay before sending auctions to ensure settings arrive first
+                    C_Timer.After(0.1, function()
+                        SyncAuctions(sender)
+                        SyncPot(sender, totalDelay)
+        
+                        C_Timer.After(0.5, function()
+                            SyncPlayerBalances(sender, totalDelay + 1)
+                        end)
                     end)
-                    GDKPT.RaidLeader.PlayerBalance.UpdatePlayerBalance()   -- this is called everytime someone else requests a sync, might not be a good solution
                 end
             end
         end
@@ -351,6 +356,30 @@ GDKPT.RaidLeader.UI.GDKPLeaderFrame:SetScript(
 )
 
 
+
+-------------------------------------------------------------------
+-- Periodically sync split count when raid roster changes
+-------------------------------------------------------------------
+
+local function SyncSplitCountOnRosterChange()
+    if IsInRaid() and GDKPT.RaidLeader.Utils.GetRaidLeaderName() == UnitName("player") then
+        local currentSplitCount = GDKPT.RaidLeader.Utils.GetCurrentSplitCount()
+        local potMsg = string.format("SYNC_POT:%d:%d", 
+            GDKPT.RaidLeader.Core.GDKP_Pot, 
+            currentSplitCount)
+        SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, potMsg, "RAID")
+    end
+end
+
+-- Register roster change events
+local rosterFrame = CreateFrame("Frame")
+rosterFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+rosterFrame:RegisterEvent("RAID_ROSTER_UPDATE")
+rosterFrame:SetScript("OnEvent", function(self, event)
+    if event == "GROUP_ROSTER_UPDATE" or event == "RAID_ROSTER_UPDATE" then
+        C_Timer.After(0.5, SyncSplitCountOnRosterChange)
+    end
+end)
 
 
 

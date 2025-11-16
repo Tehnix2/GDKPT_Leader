@@ -113,10 +113,6 @@ local function ApplyAdjustment(playerName, adjustmentAmount, auctionId)
     -- Update PlayerBalance table
     GDKPT.RaidLeader.PlayerBalance.UpdatePlayerBalance()
     
-    if GDKPT.RaidLeader.Trading.UpdateReadyForPotSplitButton then
-        GDKPT.RaidLeader.Trading.UpdateReadyForPotSplitButton()
-    end
-    
     -- Log success
     local auctionLabel = (auctionId == GENERAL_ADJUSTMENT_ID) and "General" or tostring(auctionId)
     print(string.format(GDKPT.RaidLeader.Core.addonPrintString .. "Adjustment of %d G applied to %s (Auction ID: %s)", 

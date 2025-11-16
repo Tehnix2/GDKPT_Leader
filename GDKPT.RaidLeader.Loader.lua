@@ -27,15 +27,23 @@ local function GDKPT_Loader(self, event, arg1)
             if GDKPT.RaidLeader.Core and GDKPT.RaidLeader.Core.InitPlayerWonItems then
                 GDKPT.RaidLeader.Core.InitPlayerWonItems()
             end
+            -- Initialize AuctionedItems table
+            if GDKPT.RaidLeader.Core and GDKPT.RaidLeader.Core.InitAuctionedItems then
+                GDKPT.RaidLeader.Core.InitAuctionedItems()
+            end
+            -- Initialize Saved Raid History Snapshots
+            if GDKPT.RaidLeader.Core and GDKPT.RaidLeader.Core.InitSavedSnapshots then
+                GDKPT.RaidLeader.Core.InitSavedSnapshots()
+            end
 
-            if GDKPT.RaidLeader.UI and GDKPT.RaidLeader.UI.UpdateRosterDisplay then
+            if GDKPT.RaidLeader.PlayerBalance and GDKPT.RaidLeader.PlayerBalance.UpdatePlayerBalance then
                 GDKPT.RaidLeader.PlayerBalance.UpdatePlayerBalance()
             end
-            --
+                --
             if GDKPT.RaidLeader.Core.ActiveAuctions then
                 local recalculatedPot = 0
                 for auctionId, auction in pairs(GDKPT.RaidLeader.Core.ActiveAuctions) do
-                    if auction.currentBid and auction.currentBid > 0 then
+                    if auction.currentBid and auction.currentBid > 0 and auction.hasEnded then
                         recalculatedPot = recalculatedPot + auction.currentBid
                     end
                 end

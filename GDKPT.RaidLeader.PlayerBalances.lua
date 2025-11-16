@@ -137,14 +137,28 @@ end
 -------------------------------------------------------------------
 
 local function FormatGold(amount)
-    if amount < 0 then
-        return string.format("%s-%d g|r", COLORS.negative, math.abs(amount))
-    elseif amount > 0 then
-        return string.format("%s%d g|r", COLORS.positive, amount)
-    else
-        return string.format("%s0|r", COLORS.zero)
+    local copper = math.floor(amount * 10000) -- if stored in gold, convert to copper
+    if copper < 0 then
+        copper = -copper
     end
+
+    local g = math.floor(copper / 10000)
+    local s = math.floor((copper % 10000) / 100)
+    local c = copper % 100
+
+    local color
+    if amount > 0 then
+        color = COLORS.positive
+    elseif amount < 0 then
+        color = COLORS.negative
+    else
+        color = COLORS.zero
+    end
+
+    local sign = (amount < 0) and "-" or ""
+    return string.format("%s%s%d g %02d s %02d c|r", color, sign, g, s, c)
 end
+
 
 -------------------------------------------------------------------
 -- Update a single row with player data

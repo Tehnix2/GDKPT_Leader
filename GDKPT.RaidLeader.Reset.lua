@@ -41,7 +41,9 @@ function GDKPT.RaidLeader.Reset.ResetAllAuctions()
     wipe(GDKPT.RaidLeader.Core.PlayerBalances)
     wipe(GDKPT_RaidLeader_Core_PlayerBalances)
     wipe(GDKPT.RaidLeader.Core.PlayerWonItems)  
-    wipe(GDKPT_RaidLeader_Core_PlayerWonItems)  
+    wipe(GDKPT_RaidLeader_Core_PlayerWonItems)
+    wipe(GDKPT.RaidLeader.Core.AuctionedItems)
+    wipe(GDKPT_RaidLeader_Core_AuctionedItems)
     
     -- Reset flags
     GDKPT.RaidLeader.Core.nextAuctionId = 1
@@ -59,6 +61,20 @@ function GDKPT.RaidLeader.Reset.ResetAllAuctions()
     if GDKPT.RaidLeader.InventoryOverlay and GDKPT.RaidLeader.InventoryOverlay.UpdateAllBags then
         GDKPT.RaidLeader.InventoryOverlay.UpdateAllBags()
     end
+
+    -- Register the item trade frame events and disable the pot split frame events after a reset
+    GDKPT.RaidLeader.PotSplitTrading.UnregisterEvents()
+    GDKPT.RaidLeader.ItemTrading.RegisterEvents()
+
+
+    -- Wait a moment, then broadcast a confirmation sync
+    C_Timer.After(2, function()
+        if IsInRaid() then
+            -- Send empty pot sync to confirm reset state
+            local potMsg = string.format("SYNC_POT:%d:%d", 0, GDKPT.RaidLeader.Utils.GetCurrentSplitCount())
+            SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, potMsg, "RAID")
+        end
+    end)
     
-    print("|cff00ff00[GDKPT Leader]|r Full reset complete.")
+    print(GDKPT.RaidLeader.Core.addonPrintString .. "Full reset complete.")
 end

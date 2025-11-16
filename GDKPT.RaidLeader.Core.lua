@@ -1,6 +1,6 @@
 GDKPT.RaidLeader.Core = {}
 
-GDKPT.RaidLeader.Core.version = 0.33
+GDKPT.RaidLeader.Core.version = 0.35
 
 GDKPT.RaidLeader.Core.addonPrefix = "GDKP"  
 
@@ -28,8 +28,7 @@ GDKPT.RaidLeader.Core.DefaultAuctionParameters = {
     duration = 20,         
     extraTime = 5,          
     startBid = 50,         
-    minIncrement = 10,      
-    splitCount = 25         
+    minIncrement = 10,             
 }
 
 GDKPT.RaidLeader.Core.AuctionSettings = nil
@@ -93,8 +92,14 @@ end
 -------------------------------------------------------------------
 
 -- Initialized in GDKPT.RaidLeader.AuctionStart.StartAuction and filled in AuctionEnd
-GDKPT.RaidLeader.Core.AuctionedItems = GDKPT.RaidLeader.Core.AuctionedItems or {}
 
+GDKPT_RaidLeader_Core_AuctionedItems = GDKPT_RaidLeader_Core_AuctionedItems or {}
+GDKPT.RaidLeader.Core.AuctionedItems = GDKPT_RaidLeader_Core_AuctionedItems
+
+
+function GDKPT.RaidLeader.Core.InitAuctionedItems()
+    GDKPT.RaidLeader.Core.AuctionedItems = GDKPT_RaidLeader_Core_AuctionedItems
+end
 
 
 -------------------------------------------------------------------
@@ -145,10 +150,24 @@ GDKPT.RaidLeader.Core.addonPrintString = "|cff00ff00[GDKPT Leader]|r "
 GDKPT.RaidLeader.Core.errorPrintString = "|cffff0000[GDKPT Leader]|r "
 
 
+-------------------------------------------------------------------
+-- When a pot split happens store the current amount of raid members
+-- for proper data export
+-------------------------------------------------------------------
 
+GDKPT.RaidLeader.Core.ExportSplitCount = 1
 
+-------------------------------------------------------------------
+-- Saved Snapshots of Raid Data for saving/loading and exporting 
+-- later instead of instantly
+-------------------------------------------------------------------
 
+GDKPT_RaidLeader_Core_SavedSnapshots = GDKPT_RaidLeader_Core_SavedSnapshots or {}
+GDKPT.RaidLeader.Core.SavedSnapshots = GDKPT_RaidLeader_Core_SavedSnapshots
 
+function GDKPT.RaidLeader.Core.InitSavedSnapshots()
+    GDKPT.RaidLeader.Core.SavedSnapshots = GDKPT_RaidLeader_Core_SavedSnapshots
+end
 
 
 
@@ -208,8 +227,36 @@ SlashCmdList["GDKPTLEADER"] = function(message)
         if GDKPT.RaidLeader.Export then
             GDKPT.RaidLeader.Export.Show()
         end
+    elseif cmd == "loot" or cmd == "l" then
+        if param ~= "" then
+            GDKPT.RaidLeader.AuctionStart.StartAuctionForCorpseLootFromSlashCommand(tonumber(param))
+        else
+            GDKPT.RaidLeader.AuctionStart.PrintLootSlotsForCorpseAuction()
+        end
+    elseif cmd == "save" or cmd == "snapshot" then
+        local name = param ~= "" and param or nil
+        GDKPT.RaidLeader.RaidSnapshots.SaveSnapshot(name)
+    elseif cmd == "snapshots" or cmd == "list" then
+        GDKPT.RaidLeader.RaidSnapshots.ShowUI()
+        --[[
+        if #GDKPT_RaidLeader_Core_SavedSnapshots == 0 then
+            print(GDKPT.RaidLeader.Core.errorPrintString .. "No saved snapshots.")
+        else
+            print(GDKPT.RaidLeader.Core.addonPrintString .. "Saved snapshots:")
+            for i, snap in ipairs(GDKPT_RaidLeader_Core_SavedSnapshots) do
+                print(string.format("  [%d] %s (Pot: %dg, %d players)", 
+                    i, snap.name, snap.pot, snap.splitCount))
+            end
+            print("Use: /gdkpleader load <number> to load a snapshot for export")
+        end
+        ]]
+    elseif cmd == "unload" then
+        GDKPT.RaidLeader.RaidSnapshots.UnloadSnapshot()
+    --[[
+    elseif cmd == "load" and tonumber(param) then
+        GDKPT.RaidLeader.RaidSnapshots.LoadSnapshot(tonumber(param))
+    ]]
     end
-
 end
 
 
