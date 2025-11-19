@@ -1,6 +1,6 @@
-## Title: GDKPT RaidLeader v0.34
+## Title: GDKPT RaidLeader v0.35
 ## Name: GDKPT_RaidLeader
-## Version: 0.34
+## Version: 0.35
 ## Author: Tehnix
 ## Interface: 30300
 ## SavedVariables: GDKPT_RaidLeader_Core_AuctionSettings, GDKPT_RaidLeader_Core_ActiveAuctions, GDKPT_RaidLeader_Core_AuctionedItems, GDKPT_RaidLeader_Core_PlayerBalances, GDKPT_RaidLeader_Core_PlayerWonItems, GDKPT_RaidLeader_Core_SavedSnapshots 
