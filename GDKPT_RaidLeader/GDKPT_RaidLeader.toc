@@ -1,0 +1,29 @@
+## Title: GDKPT RaidLeader v0.38
+## Name: GDKPT_RaidLeader
+## Version: 0.38
+## Author: Tehnix
+## Interface: 30300
+## SavedVariables: GDKPT_RaidLeader_Core_AuctionSettings, GDKPT_RaidLeader_Core_ActiveAuctions, GDKPT_RaidLeader_Core_AuctionedItems, GDKPT_RaidLeader_Core_PlayerBalances, GDKPT_RaidLeader_Core_PlayerWonItems, GDKPT_RaidLeader_Core_SavedSnapshots, GDKPT_RaidLeader_Core_BulkAuctionList
+GDKPT.RaidLeader.Loader.lua
+GDKPT.RaidLeader.Core.lua
+GDKPT.RaidLeader.Utils.lua
+GDKPT.RaidLeader.UI.lua
+GDKPT.RaidLeader.MessageHandler.lua
+GDKPT.RaidLeader.Sync.lua
+GDKPT.RaidLeader.VersionCheck.lua
+GDKPT.RaidLeader.AuctionStart.lua
+GDKPT.RaidLeader.AuctionBid.lua
+GDKPT.RaidLeader.AuctionEnd.lua
+GDKPT.RaidLeader.BulkAuction.lua
+GDKPT.RaidLeader.PlayerBalances.lua
+GDKPT.RaidLeader.ManualAdjustment.lua
+GDKPT.RaidLeader.Looting.lua
+GDKPT.RaidLeader.ItemTrading.lua
+GDKPT.RaidLeader.TooltipExtension.lua
+GDKPT.RaidLeader.TradeHelper.lua
+GDKPT.RaidLeader.PotSplit.lua
+GDKPT.RaidLeader.PotSplitTrading.lua
+GDKPT.RaidLeader.Export.lua
+GDKPT.RaidLeader.Reset.lua
+GDKPT.RaidLeader.Reload.lua
+GDKPT.RaidLeader.RaidSnapshots.lua
