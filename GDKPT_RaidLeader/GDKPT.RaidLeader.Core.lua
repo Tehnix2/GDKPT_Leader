@@ -1,6 +1,6 @@
 GDKPT.RaidLeader.Core = {}
 
-GDKPT.RaidLeader.Core.version = 0.38
+GDKPT.RaidLeader.Core.version = "1.0"
 
 GDKPT.RaidLeader.Core.addonPrefix = "GDKP"  
 
@@ -182,6 +182,18 @@ function GDKPT.RaidLeader.Core.InitBulkAuctionList()
 end
 
 
+-------------------------------------------------------------------
+-- Auction History
+-------------------------------------------------------------------
+
+GDKPT_RaidLeader_Core_History = GDKPT_RaidLeader_Core_History or {}
+GDKPT.RaidLeader.Core.History = GDKPT_RaidLeader_Core_History
+
+function GDKPT.RaidLeader.Core.InitHistory()
+    GDKPT.RaidLeader.Core.History = GDKPT_RaidLeader_Core_History
+end
+
+
 
 -------------------------------------------------------------------
 -- Slash Commands
@@ -202,8 +214,20 @@ SlashCmdList["GDKPTLEADER"] = function(message)
         print("  /gdkpleader syncsettings - sends global gdkp parameters to raidmembers")
         print("  /gdkpleader version - shows current leader addon version")
         print("  /gdkpleader versioncheck - causes everyone to post their GDKPT version in raid chat")
+    --elseif cmd == "auction" or cmd == "a" then 
+    --   GDKPT.RaidLeader.AuctionStart.StartAuctionFromSlashCommand()
     elseif cmd == "auction" or cmd == "a" then 
-       GDKPT.RaidLeader.AuctionStart.StartAuctionFromSlashCommand()
+       local bag, slot = param:match("(%d+):(%d+)")
+       if bag and slot then
+           local itemLink = GetContainerItemLink(tonumber(bag), tonumber(slot))
+           if itemLink then
+               GDKPT.RaidLeader.AuctionStart.StartAuction(itemLink, tonumber(bag), tonumber(slot))
+           else
+               GDKPT.RaidLeader.AuctionStart.StartAuctionFromSlashCommand()
+           end
+       else
+           GDKPT.RaidLeader.AuctionStart.StartAuctionFromSlashCommand()
+       end
     elseif cmd == "hide" or cmd == "h" then
         --   GDKPLeaderFrame:Hide()
     elseif cmd == "reset" or cmd == "r" then
@@ -257,6 +281,24 @@ SlashCmdList["GDKPTLEADER"] = function(message)
             GDKPT.RaidLeader.BulkAuction.ToggleItemInBulkList()
         else
             GDKPT.RaidLeader.BulkAuction.ShowBulkList()
+        end
+    elseif cmd == "debughistory" or cmd == "dh" then
+        print("|cff00ff00[GDKPT Leader]|r Debug History:")
+        print(string.format("History table size: %d", #GDKPT.RaidLeader.Core.History))
+        print(string.format("Saved variable size: %d", GDKPT_RaidLeader_Core_History and #GDKPT_RaidLeader_Core_History or 0))
+    
+        -- Show first few entries
+        if #GDKPT.RaidLeader.Core.History > 0 then
+            print("First 3 entries:")
+            for i = 1, math.min(3, #GDKPT.RaidLeader.Core.History) do
+                local entry = GDKPT.RaidLeader.Core.History[i]
+                print(string.format("  %d: %s won for %dg at %s", 
+                    i, 
+                    entry.winner or "?",
+                    entry.bid or 0,
+                    entry.timestamp and date("%Y-%m-%d %H:%M:%S", entry.timestamp) or "?"
+                ))
+            end
         end
     end
 end

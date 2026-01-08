@@ -52,7 +52,7 @@ local function HandleBid(sender, auctionId, bidAmount)
 
         -- Cap at timer cap OR full duration, whichever is appropriate
         if currentRemaining <= timerCap then
-            -- Already in "final stretch" - cap at timerCap
+            -- Already in final stretch - cap at timerCap
             newRemaining = math.min(newRemaining, timerCap)
         else
             -- Still in first half - cap at full duration
@@ -63,7 +63,7 @@ local function HandleBid(sender, auctionId, bidAmount)
 
         
         -- Calculate remaining time from current server time
-        local remainingTime = auction.endTime - time()   -- remainingTime = newRemaining is actually incorrect here, why?
+        local remainingTime = auction.endTime - time()   
         
         local updateMsg = string.format(
             "AUCTION_UPDATE:%d:%d:%s:%d:%d:%s",

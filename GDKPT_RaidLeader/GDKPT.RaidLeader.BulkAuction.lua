@@ -95,15 +95,7 @@ function GDKPT.RaidLeader.BulkAuction.StartBulkAuction()
     local duration = GDKPT.RaidLeader.Core.AuctionSettings.duration
     local serverTime = time()
     
-    -- Build item list string - ONLY itemID:stackCount (no item links)
-    local itemListStr = ""
-    for i, item in ipairs(GDKPT.RaidLeader.Core.BulkAuctionList) do
-        if i > 1 then itemListStr = itemListStr .. "," end
-        itemListStr = itemListStr .. string.format("%d:%d", item.itemID, item.stackCount)
-    end
-
-
-    -- Make a copy of the bulk list before wiping it
+    -- Make a copy of the bulk list
     local bulkItemsCopy = {}
     for _, item in ipairs(GDKPT.RaidLeader.Core.BulkAuctionList) do
         table.insert(bulkItemsCopy, {
@@ -115,13 +107,12 @@ function GDKPT.RaidLeader.BulkAuction.StartBulkAuction()
             slotID = item.slotID
         })
     end
-
     
     -- Store auction data with full item info
     GDKPT.RaidLeader.Core.ActiveAuctions[auctionId] = {
         id = auctionId,
         itemID = 6948,
-        itemLink = "|cffffffff[Bulk Auction]|r",
+        itemLink = "Bulk Auction",
         startTime = serverTime,
         endTime = serverTime + duration,
         duration = duration,
@@ -133,20 +124,37 @@ function GDKPT.RaidLeader.BulkAuction.StartBulkAuction()
         bulkItems = bulkItemsCopy
     }
     
-    -- Send compact message to raid
-    local msg = string.format(
-        "BULK_AUCTION_START:%d:%d:%d:%d:%d:%s",
+    -- Send initial bulk auction header
+    local headerMsg = string.format(
+        "BULK_AUCTION_START:%d:%d:%d:%d:%d",
         auctionId,
         GDKPT.RaidLeader.Core.AuctionSettings.startBid,
         GDKPT.RaidLeader.Core.AuctionSettings.minIncrement,
         duration,
-        #GDKPT.RaidLeader.Core.BulkAuctionList,
-        itemListStr
+        #bulkItemsCopy
     )
     
-    C_Timer.After(0.5, function()
-        SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, "RAID")
-    end)
+    SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, headerMsg, "RAID")
+    
+    -- Send item data in chunks (max 10 items per message to stay under 255 char limit)
+    local chunkSize = 10
+    for i = 1, #bulkItemsCopy, chunkSize do
+        local itemChunk = {}
+        for j = i, math.min(i + chunkSize - 1, #bulkItemsCopy) do
+            table.insert(itemChunk, string.format("%d:%d", 
+                bulkItemsCopy[j].itemID, 
+                bulkItemsCopy[j].stackCount))
+        end
+        
+        local chunkMsg = string.format("BULK_AUCTION_DATA:%d:%s",
+            auctionId,
+            table.concat(itemChunk, ",")
+        )
+        
+        C_Timer.After(0.1 * ((i - 1) / chunkSize + 1), function()
+            SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, chunkMsg, "RAID")
+        end)
+    end
     
     SendChatMessage("[GDKPT] Bidding starts on Bulk Auction! Starting at " 
         .. GDKPT.RaidLeader.Core.AuctionSettings.startBid .. " gold.", "RAID")
@@ -154,3 +162,5 @@ function GDKPT.RaidLeader.BulkAuction.StartBulkAuction()
     wipe(GDKPT.RaidLeader.Core.BulkAuctionList)
     print(GDKPT.RaidLeader.Core.addonPrintString .. "Bulk auction started. Bulk list cleared.")
 end
+
+

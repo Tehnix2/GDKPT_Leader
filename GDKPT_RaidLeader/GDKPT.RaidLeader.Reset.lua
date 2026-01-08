@@ -49,7 +49,24 @@ function GDKPT.RaidLeader.Reset.ResetAllAuctions()
     GDKPT.RaidLeader.Core.nextAuctionId = 1
     GDKPT.RaidLeader.Core.GDKP_Pot = 0
     GDKPT.RaidLeader.Core.PotFinalized = false  
-    --GDKPT.RaidLeader.PotSplit.PotDistributed = false
+
+    if GDKPT.RaidLeader.PotSplit.CheckPotSplitButton then
+        GDKPT.RaidLeader.PotSplit.CheckPotSplitButton:Show()
+        GDKPT.RaidLeader.PotSplit.CheckPotSplitButton:Enable()
+    end
+    
+    -- Hide and disable the actual pot split button
+    if GDKPT.RaidLeader.PotSplit.PotSplitButton then
+        GDKPT.RaidLeader.PotSplit.PotSplitButton:Hide()
+        GDKPT.RaidLeader.PotSplit.PotSplitButton:Disable()
+    end
+    
+
+    -- Hide the HandOutCut button from trade window
+    if HandOutCutButton then
+        HandOutCutButton:Hide()
+    end
+
     
     -- Update UI
     if GDKPT.RaidLeader.PlayerBalance.UpdatePlayerBalance then
