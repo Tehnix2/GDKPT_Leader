@@ -20,6 +20,7 @@ The Raid Leader is the only source of truth for all raid members, and GDKPT_Raid
 - Auction Reset for all raid members available through a button click
 - TradeHelper frame that automatically shows the items a player won. If it was BoE, the TradeHelper will automatically place that BoE item into the trade slots. If it was BoP, you need to click that item on the TradeHelper frame.
 - Tooltip Expansion that helps with keeping track of already auctioned items and who won them (or if they went to the Bulk)
+- All Data is saved through reloads, logouts and server crashes
 
 
 
@@ -52,3 +53,33 @@ The Raid Leader is the only source of truth for all raid members, and GDKPT_Raid
 22. Click Export Raid Data and choose your prefered Export Format in order to export data.
 
 Thats it, you are now a GDKP Organizer. Welcome to the club!
+
+
+
+<img width="851" height="857" alt="grafik" src="https://github.com/user-attachments/assets/94ecb1ad-1071-4b4d-a372-765ce6b65b2b" />
+
+<img width="659" height="592" alt="grafik" src="https://github.com/user-attachments/assets/f5fa6873-1496-4968-a3f3-61b4ca2858aa" />
+
+<img width="893" height="919" alt="grafik" src="https://github.com/user-attachments/assets/f3b264cf-ba58-47c3-81e9-11d244f09f27" />
+
+<img width="862" height="656" alt="grafik" src="https://github.com/user-attachments/assets/8b9136e0-cd82-4455-a7f3-72faae187511" />
+
+<img width="846" height="645" alt="grafik" src="https://github.com/user-attachments/assets/b5803f31-f816-4492-92a8-6c03840c7296" />
+
+<img width="318" height="470" alt="grafik" src="https://github.com/user-attachments/assets/dc725922-aa6e-4e15-bdb3-f5490c179f97" />
+
+<img width="813" height="662" alt="grafik" src="https://github.com/user-attachments/assets/f08b6b43-5815-4b32-8604-c08c39f4acbf" />
+
+<img width="791" height="931" alt="grafik" src="https://github.com/user-attachments/assets/0955a3a9-34de-4018-9d9f-6e57de33a699" />
+
+
+
+
+
+
+
+
+
+
+
+
