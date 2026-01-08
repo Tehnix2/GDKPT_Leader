@@ -2,7 +2,7 @@
 
 This is raid leader version of GDKPT. You only need to have the raid leader version if you want to host a GDKP using GDKPT yourself. I recommend disabling the raid leader addon when participating in a GDKP that you are not hosting.
 
-The Raid Leader is the only source of truth for all raid members, and GDKPT_RaidLeader handles all of the addon sending back & forth.
+The Raid Leader is the only source of truth for all raid members, and GDKPT_RaidLeader handles all of the addon message sending back & forth.
 
 # Additional Features
 
