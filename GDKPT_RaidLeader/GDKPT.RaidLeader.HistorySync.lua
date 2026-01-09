@@ -103,6 +103,10 @@ eventFrame:RegisterEvent("CHAT_MSG_ADDON")
 
 eventFrame:SetScript("OnEvent", function(self, event, prefix, msg, channel, sender)
     if prefix ~= GDKPT.RaidLeader.Core.addonPrefix then return end
+
+    if not IsRaidLeader() and not IsRaidOfficer() then
+        return
+    end
     
     local cmd, data = msg:match("^([^:]+):(.*)$")
     if not cmd then return end

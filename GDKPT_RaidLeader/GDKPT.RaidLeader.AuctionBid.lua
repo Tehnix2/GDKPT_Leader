@@ -93,6 +93,11 @@ bidReceiverFrame:RegisterEvent("CHAT_MSG_ADDON")
 bidReceiverFrame:SetScript(
     "OnEvent",
     function(self, event, prefix, msg, channel, sender)
+
+        if not IsRaidLeader() and not IsRaidOfficer() then
+            return
+        end
+
         if prefix ~= GDKPT.RaidLeader.Core.addonPrefix or not GDKPT.RaidLeader.Utils.IsSenderInMyRaid(sender) then
             return
         end

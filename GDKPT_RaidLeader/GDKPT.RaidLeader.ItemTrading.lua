@@ -317,6 +317,10 @@ leaderEventFrame:RegisterEvent("CHAT_MSG_ADDON")
 leaderEventFrame:SetScript("OnEvent", function(self, event, prefix, msg, channel, sender)
     if prefix ~= GDKPT.RaidLeader.Core.addonPrefix then return end
 
+    if not IsRaidLeader() and not IsRaidOfficer() then
+        return
+    end
+
     if msg == "REQUEST_MY_BALANCE" then
         local balance = GDKPT.RaidLeader.Core.PlayerBalances[sender] or 0
         SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, "SYNC_MY_BALANCE:" .. balance, "WHISPER", sender)

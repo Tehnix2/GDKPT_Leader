@@ -174,71 +174,6 @@ local function SendActiveAuctions(activeAuctions, channel, targetPlayer, message
 end
 
 
---[[
-
-
-local function SendActiveAuctions(activeAuctions, channel, targetPlayer, messageDelay, delayIncrement)
-    local target = targetPlayer or nil
-
-    for _, data in ipairs(activeAuctions) do
-        local auction = data.auction
-        local auctionId = data.id
-        local remainingDuration = math.max(0, auction.endTime - time())
-        local stackCount = auction.stackCount or 
-            GDKPT.RaidLeader.Utils.GetInventoryStackCount(auction.itemLink) or 1
-
-        local msg = string.format(
-            "AUCTION_START:%d:%d:%d:%d:%d:%d:%s",
-            auctionId,
-            auction.itemID,
-            auction.startBid,
-            GDKPT.RaidLeader.Core.AuctionSettings.minIncrement,
-            remainingDuration,
-            stackCount,
-            auction.itemLink
-        )
-
-        C_Timer.After(messageDelay, function()
-            if targetPlayer then
-                SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, channel, target)
-            else
-                SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, channel)
-            end
-
-            -- Send auction update message if bid exists
-            if auction.currentBid > 0 and auction.topBidder ~= "" then
-                C_Timer.After(0.25, function()
-                    local updateMsg = string.format(
-                        "AUCTION_UPDATE:%d:%d:%s:%d:%d:%s",
-                        auctionId,
-                        auction.currentBid,
-                        auction.topBidder,
-                        remainingDuration,
-                        auction.itemID,
-                        auction.itemLink
-                    )
-                    if targetPlayer then
-                        SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, updateMsg, channel, target)
-                    else
-                        SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, updateMsg, channel)
-                    end
-                end)
-            end
-        end)
-
-        messageDelay = messageDelay + delayIncrement
-    end
-
-    return messageDelay
-end
-
-
-]]
-
-
--------------------------------------------------------------------
--- Function to send completed auctions to a channel
--------------------------------------------------------------------
 
 -------------------------------------------------------------------
 -- Function to send completed auctions to a channel
@@ -319,55 +254,6 @@ end
 
 
 
-
---[[
-
-local function SendCompletedAuctions(completedAuctions, channel, targetPlayer, messageDelay, delayIncrement)
-    local target = targetPlayer or nil
-    for _, data in ipairs(completedAuctions) do
-        local auction = data.auction
-        local auctionId = data.id
-        local stackCount = auction.stackCount or 1
-        C_Timer.After(messageDelay, function()
-            -- Send start message with 0 duration for completed auctions
-            local msg = string.format(
-                "AUCTION_START:%d:%d:%d:%d:%d:%d:%s",
-                auctionId,
-                auction.itemID,
-                auction.startBid,
-                GDKPT.RaidLeader.Core.AuctionSettings.minIncrement,
-                0, 
-                stackCount,
-                auction.itemLink
-            )
-            if targetPlayer then
-                SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, channel, target)
-            else
-                SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, channel)
-            end
-            -- Send end message
-            C_Timer.After(0.25, function()
-                local endMsg = string.format(
-                    "AUCTION_END:%d:%d:%d:%s:%d",
-                    auctionId,
-                    auction.currentBid or 0,
-                    auction.itemID,
-                    auction.topBidder or "",  
-                    auction.currentBid or 0
-                )
-                if targetPlayer then
-                    SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, endMsg, channel, target)
-                else
-                    SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, endMsg, channel)
-                end
-            end)
-        end)
-        messageDelay = messageDelay + delayIncrement
-    end
-    return messageDelay
-end
-
-]]
 
 
 -------------------------------------------------------------------
@@ -516,6 +402,11 @@ GDKPT.RaidLeader.UI.GDKPLeaderFrame:SetScript(
     "OnEvent",
     function(self, event, ...)
         if event == "CHAT_MSG_ADDON" then
+
+            if not IsRaidLeader() and not IsRaidOfficer() then
+                return
+            end
+
             local prefix, message, distribution, sender = ...
 
             if prefix == GDKPT.RaidLeader.Core.addonPrefix then

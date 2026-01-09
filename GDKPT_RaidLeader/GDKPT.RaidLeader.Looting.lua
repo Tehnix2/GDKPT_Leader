@@ -18,6 +18,21 @@ AnnounceOnlyButton:SetPoint("TOP", GDKPT.RaidLeader.UI.LeaderFrame, "BOTTOM", 0,
 AnnounceOnlyButton:SetText("Announce Only")
 
 
+---------------------------------------------------------------------------------------
+-- Function to update button visibility based on raid leader/officer status
+---------------------------------------------------------------------------------------
+
+
+local function UpdateLootingButtonsVisibility()
+    if IsRaidLeader() or IsRaidOfficer() then
+        AnnounceAndLootButton:Show()
+        AnnounceOnlyButton:Show()
+    else
+        AnnounceAndLootButton:Hide()
+        AnnounceOnlyButton:Hide()
+    end
+end
+
 
 
 
@@ -103,3 +118,20 @@ end)
 AnnounceOnlyButton:SetScript("OnClick", function()
     GDKPT.RaidLeader.Looting.ProcessLoot(false) -- 'false' = no auto-loot
 end)
+
+
+---------------------------------------------------------------------------------------
+-- Only show the loot and announce buttons when the player is the raid leader, recheck
+-- on roster change
+---------------------------------------------------------------------------------------
+
+
+-- Call on load and roster updates
+local lootVisibilityFrame = CreateFrame("Frame")
+lootVisibilityFrame:RegisterEvent("RAID_ROSTER_UPDATE")
+lootVisibilityFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+lootVisibilityFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+lootVisibilityFrame:SetScript("OnEvent", UpdateLootingButtonsVisibility)
+
+-- Initial call
+UpdateLootingButtonsVisibility()

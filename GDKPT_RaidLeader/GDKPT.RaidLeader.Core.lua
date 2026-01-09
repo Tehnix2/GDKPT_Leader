@@ -201,6 +201,12 @@ end
 
 SLASH_GDKPTLEADER1 = "/gdkpleader"
 SlashCmdList["GDKPTLEADER"] = function(message)
+
+    if not IsRaidLeader() and not IsRaidOfficer() then
+        print(GDKPT.RaidLeader.Core.errorPrintString .. "You must be the raid leader or an officer to use RaidLeader commands.")
+        return
+    end
+
     local cmd, param = message:match("^(%S+)%s*(.*)")
     cmd = cmd or ""
 

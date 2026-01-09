@@ -145,6 +145,11 @@ local auctionTimerFrame = CreateFrame("Frame")
 
 
 auctionTimerFrame:SetScript("OnUpdate", function(self, elapsed)
+
+    if not IsRaidLeader() and not IsRaidOfficer() then
+        return
+    end
+
     HandleAuctionUpdates(self, elapsed)
 end)
 

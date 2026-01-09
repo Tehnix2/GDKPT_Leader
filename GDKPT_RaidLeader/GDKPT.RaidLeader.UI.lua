@@ -459,13 +459,14 @@ buttonText:SetText("GDKPT Leader")
 
 
 local function UpdateToggleButtonVisibility()
-    if IsInRaid() then
+    if IsInRaid() and (IsRaidLeader() or IsRaidOfficer()) then
         if not LeaderFrame:IsVisible() then
             LeaderToggleButton:Show()
         end
     else
         LeaderToggleButton:Hide()
         LeaderFrame:Hide()
+        GDKPLeaderFrame:Hide()
     end
 end
 
@@ -474,7 +475,8 @@ local EventFrame = CreateFrame("Frame")
 EventFrame:RegisterEvent("RAID_ROSTER_UPDATE")    
 EventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")   
 EventFrame:RegisterEvent("PLAYER_LOGIN")           
-EventFrame:RegisterEvent("ADDON_LOADED")           
+EventFrame:RegisterEvent("ADDON_LOADED")   
+EventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 
 EventFrame:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" then
