@@ -1,6 +1,6 @@
 GDKPT.RaidLeader.Core = {}
 
-GDKPT.RaidLeader.Core.version = "1.0"
+GDKPT.RaidLeader.Core.version = "1.01"
 
 GDKPT.RaidLeader.Core.addonPrefix = "GDKP"  
 
@@ -282,6 +282,10 @@ SlashCmdList["GDKPTLEADER"] = function(message)
         GDKPT.RaidLeader.RaidSnapshots.ShowUI()
     elseif cmd == "unload" then
         GDKPT.RaidLeader.RaidSnapshots.UnloadSnapshot()
+    elseif cmd == "potadjustment" or cmd == "pot" then 
+        GDKPT.RaidLeader.PotAdjustment.ShowUI()
+    elseif cmd == "recover" or cmd == "recovery" then
+        GDKPT.RaidLeader.RecoverFromMember.ShowUI()
     elseif cmd == "bulk" or cmd == "b" then
         if param ~= "" then
             GDKPT.RaidLeader.BulkAuction.ToggleItemInBulkList()

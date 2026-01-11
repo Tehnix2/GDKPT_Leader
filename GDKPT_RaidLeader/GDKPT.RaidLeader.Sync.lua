@@ -472,3 +472,4 @@ end)
 GDKPT.RaidLeader.Sync.SyncSettings = SyncSettings
 GDKPT.RaidLeader.Sync.SyncAuctions = SyncAuctions
 GDKPT.RaidLeader.Sync.SyncPlayerBalances = SyncPlayerBalances
+GDKPT.RaidLeader.Sync.SyncPot = SyncPot

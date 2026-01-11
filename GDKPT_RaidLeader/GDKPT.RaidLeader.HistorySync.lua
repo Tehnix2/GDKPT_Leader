@@ -4,64 +4,56 @@ GDKPT.RaidLeader.HistorySync = {}
 -- Handle history sync requests from raid members
 -------------------------------------------------------------------
 
-local function HandleHistorySyncRequest(sender, memberHistoryHashes)
+local function HandleHistorySyncRequest(sender, requestData)
     print(string.format(GDKPT.RaidLeader.Core.addonPrintString .. "History sync request from %s", sender))
+    
+    -- Add raid leader check
+    if not IsRaidLeader() and not IsRaidOfficer() then
+        print(GDKPT.RaidLeader.Core.errorPrintString .. "Only raid leader/officer can sync history")
+        return
+    end
     
     -- Use the member addon's history table (since raid leader runs both addons)
     local leaderHistory = GDKPT and GDKPT.Core and GDKPT.Core.History or {}
     
     if not leaderHistory or #leaderHistory == 0 then
         print(GDKPT.RaidLeader.Core.errorPrintString .. "Leader has no history to share!")
-        SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, "HISTORY_SYNC:", "RAID")
+        SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, "HISTORY_SYNC:", "WHISPER", sender)
         return
     end
     
-    -- Parse member's existing entry hashes
-    local memberHashes = {}
-    local memberHashCount = 0
-    if memberHistoryHashes and memberHistoryHashes ~= "" then
-        for hash in memberHistoryHashes:gmatch("[^,]+") do
-            memberHashes[hash] = true
-            memberHashCount = memberHashCount + 1
-        end
+    -- Parse simple request: just the member's total count
+    local memberCount = tonumber(requestData) or 0
+    local leaderCount = #leaderHistory
+    
+    print(string.format(GDKPT.RaidLeader.Core.addonPrintString .. "Member has %d entries, Leader has %d entries", 
+        memberCount, leaderCount))
+    
+    -- If member has same or more entries, they might be up to date
+    -- But we'll send everything anyway and let deduplication handle it
+    if memberCount >= leaderCount then
+        print(GDKPT.RaidLeader.Core.addonPrintString .. "Member appears up to date, but sending all entries for verification")
     end
     
-    print(string.format(GDKPT.RaidLeader.Core.addonPrintString .. "Member has %d existing entries", memberHashCount))
-    
-    -- Collect entries that member doesn't have
+    -- Copy all entries to send
     local entriesToSend = {}
-    
     for _, entry in ipairs(leaderHistory) do
-        local hash = string.format("%d_%s_%d", 
-            entry.timestamp or 0,
-            entry.winner or "",
-            entry.bid or 0
-        )
-        
-        if not memberHashes[hash] then
-            table.insert(entriesToSend, entry)
-        end
-    end
-    
-    print(string.format(GDKPT.RaidLeader.Core.addonPrintString .. "Found %d entries to send (leader has %d total)", 
-        #entriesToSend, #leaderHistory))
-    
-    if #entriesToSend == 0 then
-        SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, "HISTORY_SYNC:", "RAID")
-        print(GDKPT.RaidLeader.Core.addonPrintString .. "Member history is up to date.")
-        return
+        table.insert(entriesToSend, entry)
     end
     
     -- Sort by timestamp (oldest first)
     table.sort(entriesToSend, function(a, b) return (a.timestamp or 0) < (b.timestamp or 0) end)
     
-    -- Send entries - extract item ID from link
-    local totalEntries = #entriesToSend
+    print(string.format(GDKPT.RaidLeader.Core.addonPrintString .. "Sending %d entries to %s", 
+        #entriesToSend, sender))
+    
+    -- Send in batches with delay to prevent FPS drops
+    local delay = 0.1
     
     for i, entry in ipairs(entriesToSend) do
         -- Extract item ID from link
         local itemID = 0
-        if entry.link and entry.link ~= "nil" then
+        if entry.link and entry.link ~= "nil" and entry.link ~= "Bulk Auction" then
             local extractedID = entry.link:match("item:(%d+)")
             itemID = tonumber(extractedID) or 0
         end
@@ -77,41 +69,48 @@ local function HandleHistorySyncRequest(sender, memberHistoryHashes)
             entry.bulkItemCount or 0
         )
         
-        -- Send with delay to avoid flooding
-        local delay = (i - 1) * 0.05
-        C_Timer.After(delay, function()
-            SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, "RAID")
+        -- Send with delay and whisper to sender only
+        local delayTime = (i - 1) * delay
+        C_Timer.After(delayTime, function()
+            SendAddonMessage(GDKPT.RaidLeader.Core.addonPrefix, msg, "WHISPER", sender)
             
-            -- Progress updates every 100 entries
-            if i % 100 == 0 or i == totalEntries then
-                print(string.format(GDKPT.RaidLeader.Core.addonPrintString .. "Sent %d/%d entries", 
-                    i, totalEntries))
+            -- Progress updates every 50 entries
+            if i % 50 == 0 or i == #entriesToSend then
+                print(string.format(GDKPT.RaidLeader.Core.addonPrintString .. "Sent %d/%d entries to %s", 
+                    i, #entriesToSend, sender))
             end
         end)
     end
     
-    print(string.format(GDKPT.RaidLeader.Core.addonPrintString .. "Queued %d history entries to %s (will take ~%.1f seconds)", 
-        totalEntries, sender, totalEntries * 0.05))
+    -- Send final completion message after all entries
+    C_Timer.After((#entriesToSend) * delay + 0.5, function()
+        print(string.format(GDKPT.RaidLeader.Core.addonPrintString .. "Completed sync to %s (%d entries sent)", 
+            sender, #entriesToSend))
+    end)
 end
 
 -------------------------------------------------------------------
 -- Register event handler for history sync requests
 -------------------------------------------------------------------
 
-local eventFrame = CreateFrame("Frame")
-eventFrame:RegisterEvent("CHAT_MSG_ADDON")
+local historySyncFrame = CreateFrame("Frame")
+historySyncFrame:RegisterEvent("CHAT_MSG_ADDON")
 
-eventFrame:SetScript("OnEvent", function(self, event, prefix, msg, channel, sender)
+historySyncFrame:SetScript("OnEvent", function(self, event, prefix, msg, channel, sender)
     if prefix ~= GDKPT.RaidLeader.Core.addonPrefix then return end
 
     if not IsRaidLeader() and not IsRaidOfficer() then
         return
     end
     
-    local cmd, data = msg:match("^([^:]+):(.*)$")
+    local cmd, data = msg:match("([^:]+):(.*)")
     if not cmd then return end
     
-    if cmd == "REQUEST_HISTORY_SYNC" then
-        HandleHistorySyncRequest(sender, data)
+    if cmd == "REQUEST_HISTORY_SYNC_FROM_LEADER" then
+        if IsRaidLeader() and GDKPT.RaidLeader and GDKPT.RaidLeader.HistorySync then
+           print(string.format(GDKPT.Core.print .. "Forwarding history sync request from %s to RaidLeader addon", sender))
+           HandleHistorySyncRequest(sender, data)
+        end
+        return
     end
 end)
