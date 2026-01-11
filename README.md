@@ -21,6 +21,7 @@ The Raid Leader is the only source of truth for all raid members, and GDKPT_Raid
 - TradeHelper frame that automatically shows the items a player won. If it was BoE, the TradeHelper will automatically place that BoE item into the trade slots. If it was BoP, you need to click that item on the TradeHelper frame.
 - Tooltip Expansion that helps with keeping track of already auctioned items and who won them (or if they went to the Bulk)
 - All Data is saved through reloads, logouts and server crashes
+- There are now some additional features available to recover data from raid members if the raidleader has a client crash and loses data
 
 
 
